@@ -19,14 +19,16 @@
   <noscript>This game requires JavaScript and WebAssembly.</noscript>
   <script type="module">
     const status = document.getElementById('status');
-    function fail(message) {
+    function fail(message, offerNewGame = true) {
       status.replaceChildren();
       const text = document.createElement('p');
       text.textContent = message;
+      status.append(text);
+      if (!offerNewGame) return;
       const fresh = document.createElement('a');
       fresh.href = location.pathname + location.search;
       fresh.textContent = 'Start a new game';
-      status.append(text, fresh);
+      status.append(fresh);
     }
     function engineVersion() {
       const fragment = location.hash.slice(1);
@@ -35,6 +37,10 @@
     const version = engineVersion();
     if (version !== 'v1') {
       fail('This game link uses an unsupported engine version. The link has been left unchanged.');
+    } else if (!window.isSecureContext) {
+      fail('Open this game over HTTPS. For testing on this computer, use localhost.', false);
+    } else if (!navigator.gpu) {
+      fail('This game requires WebGPU. Use an up-to-date browser with WebGPU support.', false);
     } else {
       try {
         const engine = await import('./engines/v1/patience_app.js');
@@ -46,7 +52,7 @@
         });
       } catch (error) {
         console.error(error);
-        fail('The game could not start. Use a browser with WebGPU or WebGL 2 support on localhost or HTTPS.');
+        fail('The game could not start. Check your connection and that WebGPU is enabled and available on this device.', false);
       }
     }
   </script>

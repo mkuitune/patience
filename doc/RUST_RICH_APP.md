@@ -32,6 +32,7 @@ measured performance, and verified platform support.
 |---|---|---|
 | Application shell and interface | `eframe`, `egui` | Window, lifecycle, panels, controls, overlays |
 | Rendering | `wgpu`, `egui-wgpu` | Custom scene rendering integrated with the GUI |
+| SVG vector assets | `egui_extras` SVG loader, `resvg`, `tiny-skia` | Runtime SVG rendering and size-aware texture caching |
 | Math | `glam` | Vectors, transforms, cameras, quaternions |
 | Serialization | `serde`, `serde_json` | Settings, persisted state, command payloads |
 | Domain errors | `thiserror` | Errors callers can inspect and handle |
@@ -50,6 +51,25 @@ Select mutually compatible versions of `eframe`, `egui`, `egui-wgpu`, and `wgpu`
 together. Use the `wgpu` backend explicitly and commit the application lockfile.
 The table assigns responsibilities; it is not a requirement to install every
 optional dependency on day one.
+
+### Vector graphics
+
+Treat SVG as a runtime asset format. For SVG assets displayed through egui, enable
+`egui_extras`'s `svg` feature and install its image loaders when creating the GUI
+context. This uses resvg to interpret SVG and tiny-skia to render on the CPU.
+Keep the source vectors and request rendering at the actual pixel size, including
+display scaling. Reuse the loader's cached textures between frames. Bundle fixed
+application artwork so it does not depend on third-party servers during use.
+
+The SVG loader is one concrete rendering capability. A general-purpose vector
+engine also needs decisions about paths, text, effects, compositing, and CPU/GPU
+execution. Skia and Vello are candidates for that broader responsibility; no
+general-purpose backend has been selected yet. Keep this responsibility in the
+renderer, with authoritative geometry and edits independent of its types.
+
+TODO: Choose the general-purpose vector renderer after comparing Skia and Vello
+on Windows and WebGPU, including supported features, rendering quality,
+integration with the shared GPU context, performance, and deployed size.
 
 ## Ownership and dependency direction
 

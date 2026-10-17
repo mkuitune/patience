@@ -1,0 +1,98 @@
+[
+  {
+    "rank": "jack",
+    "suit": "clubs",
+    "author": "Dmitry Fomin",
+    "license": "CC0-1.0",
+    "source": "https://commons.wikimedia.org/wiki/File:English_pattern_jack_of_clubs.svg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/8/80/English_pattern_jack_of_clubs.svg"
+  },
+  {
+    "rank": "jack",
+    "suit": "diamonds",
+    "author": "Dmitry Fomin",
+    "license": "CC0-1.0",
+    "source": "https://commons.wikimedia.org/wiki/File:English_pattern_jack_of_diamonds.svg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/1/16/English_pattern_jack_of_diamonds.svg"
+  },
+  {
+    "rank": "jack",
+    "suit": "hearts",
+    "author": "Dmitry Fomin",
+    "license": "CC0-1.0",
+    "source": "https://commons.wikimedia.org/wiki/File:English_pattern_jack_of_hearts.svg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/5/56/English_pattern_jack_of_hearts.svg"
+  },
+  {
+    "rank": "jack",
+    "suit": "spades",
+    "author": "Dmitry Fomin",
+    "license": "CC0-1.0",
+    "source": "https://commons.wikimedia.org/wiki/File:English_pattern_jack_of_spades.svg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/4/4f/English_pattern_jack_of_spades.svg"
+  },
+  {
+    "rank": "queen",
+    "suit": "clubs",
+    "author": "Dmitry Fomin",
+    "license": "CC0-1.0",
+    "source": "https://commons.wikimedia.org/wiki/File:English_pattern_queen_of_clubs.svg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/b/b3/English_pattern_queen_of_clubs.svg"
+  },
+  {
+    "rank": "queen",
+    "suit": "diamonds",
+    "author": "Dmitry Fomin",
+    "license": "CC0-1.0",
+    "source": "https://commons.wikimedia.org/wiki/File:English_pattern_queen_of_diamonds.svg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/4/4f/English_pattern_queen_of_diamonds.svg"
+  },
+  {
+    "rank": "queen",
+    "suit": "hearts",
+    "author": "Dmitry Fomin",
+    "license": "CC0-1.0",
+    "source": "https://commons.wikimedia.org/wiki/File:English_pattern_queen_of_hearts.svg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/9/9d/English_pattern_queen_of_hearts.svg"
+  },
+  {
+    "rank": "queen",
+    "suit": "spades",
+    "author": "Dmitry Fomin",
+    "license": "CC0-1.0",
+    "source": "https://commons.wikimedia.org/wiki/File:English_pattern_queen_of_spades.svg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/c/ca/English_pattern_queen_of_spades.svg"
+  },
+  {
+    "rank": "king",
+    "suit": "clubs",
+    "author": "Dmitry Fomin",
+    "license": "CC0-1.0",
+    "source": "https://commons.wikimedia.org/wiki/File:English_pattern_king_of_clubs.svg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/3/3e/English_pattern_king_of_clubs.svg"
+  },
+  {
+    "rank": "king",
+    "suit": "diamonds",
+    "author": "Dmitry Fomin",
+    "license": "CC0-1.0",
+    "source": "https://commons.wikimedia.org/wiki/File:English_pattern_king_of_diamonds.svg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/1/1c/English_pattern_king_of_diamonds.svg"
+  },
+  {
+    "rank": "king",
+    "suit": "hearts",
+    "author": "Dmitry Fomin",
+    "license": "CC0-1.0",
+    "source": "https://commons.wikimedia.org/wiki/File:English_pattern_king_of_hearts.svg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/1/14/English_pattern_king_of_hearts.svg"
+  },
+  {
+    "rank": "king",
+    "suit": "spades",
+    "author": "Dmitry Fomin",
+    "license": "CC0-1.0",
+    "source": "https://commons.wikimedia.org/wiki/File:English_pattern_king_of_spades.svg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/f/f1/English_pattern_king_of_spades.svg"
+  }
+]

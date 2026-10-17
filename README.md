@@ -60,8 +60,10 @@ Copy-Item web/index.html dist/index.html
 py -3 -m http.server 8080 --bind 127.0.0.1 --directory dist
 ```
 
-Open <http://127.0.0.1:8080>. Use localhost or HTTPS with a WebGPU- or WebGL 2-capable
-browser. Opening the HTML file directly does not load the WebAssembly application.
+Open <http://127.0.0.1:8080> with a WebGPU-capable browser. The web build requires
+WebGPU and has no WebGL fallback. Phone and other LAN clients need trusted HTTPS;
+plain HTTP on a LAN IP address does not enable WebGPU. Opening the HTML file
+directly does not load the WebAssembly application.
 `scripts/build-web.ps1` combines the build and copy steps where PowerShell permits
 local scripts; pass `-Dev` for a debug build.
 

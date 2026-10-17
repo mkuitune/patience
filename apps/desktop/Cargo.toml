@@ -12,12 +12,13 @@ crate-type = ["cdylib", "rlib"]
 patience-core = { path = "../../crates/core" }
 eframe = { version = "=0.33.3", default-features = false, features = ["default_fonts", "wgpu", "x11", "wayland"] }
 rand = "0.9"
+egui_extras = { version = "=0.33.3", default-features = false, features = ["svg"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 wgpu = { version = "27", default-features = false, features = ["dx12"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wgpu = { version = "27", default-features = false, features = ["webgpu", "webgl"] }
+wgpu = { version = "27", default-features = false, features = ["webgpu"] }
 getrandom = { version = "0.3", features = ["wasm_js"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"

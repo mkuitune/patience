@@ -1,3 +1,4 @@
+use crate::cards::paint_card;
 use crate::platform::Platform;
 use eframe::egui::{self, Align2, Color32, FontId, Rect, Sense, Stroke, StrokeKind};
 use patience_core::{Card, Command, Destination, Engine, Game, Source};
@@ -74,6 +75,7 @@ enum Click {
 
 impl PatienceApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        egui_extras::install_image_loaders(&cc.egui_ctx);
         cc.egui_ctx.set_visuals(egui::Visuals::dark());
         cc.egui_ctx.style_mut(|style| {
             style.spacing.button_padding = egui::vec2(14.0, 9.0);
@@ -658,8 +660,6 @@ impl eframe::App for PatienceApp {
         }
         egui::TopBottomPanel::top("toolbar").show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
-                ui.heading("Klondike");
-                ui.add_space(12.0);
                 if ui.button("New game").clicked() {
                     self.engine = Engine::new(Game::deal(rand::random()));
                     self.waste_fan_count = 0;
@@ -817,68 +817,12 @@ fn move_arrow(painter: &egui::Painter, from: Rect, to: Rect, over_cards: bool) {
     painter.circle_filled(start, 3.0, ink);
 }
 
-fn paint_card(ui: &egui::Ui, rect: Rect, value: Option<Card>, selected: bool) {
-    let border = if selected {
-        Color32::from_rgb(255, 204, 65)
-    } else {
-        Color32::from_gray(45)
-    };
-    let fill = if value.is_some() {
-        Color32::from_rgb(255, 253, 244)
-    } else {
-        Color32::from_rgb(35, 65, 125)
-    };
-    ui.painter().rect(
-        rect,
-        5.0,
-        fill,
-        Stroke::new(if selected { 3.0 } else { 1.0 }, border),
-        StrokeKind::Inside,
-    );
-    if let Some(value) = value {
-        let ink = if value.suit().is_red() {
-            Color32::from_rgb(181, 28, 40)
-        } else {
-            Color32::from_rgb(23, 27, 34)
-        };
-        let label = format!("{}{}", value.rank_label(), value.suit().symbol());
-        let font = FontId::proportional(rect.width() * 0.23);
-        ui.painter().text(
-            rect.min + egui::vec2(6.0, 4.0),
-            Align2::LEFT_TOP,
-            &label,
-            font.clone(),
-            ink,
-        );
-        ui.painter().text(
-            rect.max - egui::vec2(6.0, 4.0),
-            Align2::RIGHT_BOTTOM,
-            label,
-            font,
-            ink,
-        );
-        ui.painter().text(
-            rect.center(),
-            Align2::CENTER_CENTER,
-            value.suit().symbol(),
-            FontId::proportional(rect.width() * 0.47),
-            ink,
-        );
-    } else {
-        ui.painter().rect_stroke(
-            rect.shrink(5.0),
-            2.0,
-            Stroke::new(1.0, Color32::from_white_alpha(130)),
-            StrokeKind::Inside,
-        );
-    }
-}
-
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use super::*;
 
     fn app(game: Game, ctx: &egui::Context) -> PatienceApp {
+        egui_extras::install_image_loaders(ctx);
         PatienceApp {
             engine: Engine::new(game),
             waste_fan_count: 0,

@@ -1,4 +1,5 @@
 mod app;
+mod cards;
 mod platform;
 
 pub use app::PatienceApp;

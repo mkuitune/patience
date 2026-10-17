@@ -5,6 +5,19 @@ with a small headless rules kernel and an immediate-mode `egui` interface. Simpl
 cards use egui painting on the `wgpu` backend; a separate custom renderer adds no
 useful boundary for this game.
 
+The web build enables only the WebGPU backend. It requires a WebGPU-capable
+browser, an available GPU adapter, and a secure context (HTTPS or localhost).
+WebGL fallback is excluded to reduce the deployed binary. Windows builds enable
+Direct3D 12 independently of the web backend selection.
+
+`cards.rs` paints traditional rank-specific pip layouts, shared across all suits.
+Lower pips and bottom corner indexes rotate by 180 degrees. The ace of spades
+has a larger central symbol; the other aces use a normal central pip. Court cards
+embed Dmitry Fomin's CC0 English-pattern SVGs. `egui_extras` supplies runtime SVG
+loading through resvg and tiny-skia, rendering and caching each image at its
+displayed pixel size. The same loader runs on desktop and web. Source and license
+details are retained in [the card assets](../apps/desktop/assets/cards/README.md).
+
 ## State and update flow
 
 `Game` owns stock, waste, seven tableau columns, and four foundations. Card
