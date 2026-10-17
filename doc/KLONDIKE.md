@@ -10,6 +10,10 @@ useful boundary for this game.
 `Game` owns stock, waste, seven tableau columns, and four suit foundations. Card
 lists run from bottom to top. Each tableau stores its face-down prefix length.
 Foundations store their highest rank; lower cards are implied.
+The board also stores its draw mode. New deals default to Draw Three. Each stock
+action draws up to three cards, preserving their order; only the top waste card
+is playable. Draw One is available for new games. A mode selection never changes
+the rules of the current board.
 
 The update model follows Elm-style state transitions:
 
@@ -43,7 +47,18 @@ interaction regions, drag ownership, mouse/touch input, and repaint scheduling.
 Application code requests another repaint after a board action so the newly
 published state appears. Reloading a bookmark resets selection and undo history.
 
-## Version 1 encoding
+## Version 2 encoding
+
+New links use `#v2:<payload>`. The binary payload begins with one mode byte: `1`
+for Draw One or `3` for Draw Three. The remaining bytes use the version 1 board
+layout below. Other mode values are rejected.
+
+Version 2 uses at most 73 bytes, 98 Base64 characters, and 101 fragment characters
+excluding `#`. Draw mode survives loading, moves, recycling, and undo. Version 1
+links remain readable and always imply Draw One; the current engine writes the
+explicit version 2 format after loading them.
+
+### Version 1 board layout
 
 The fragment has the form `#v1:<payload>`. The payload is unpadded URL-safe Base64
 of the following bytes, in order:
@@ -82,6 +97,9 @@ its deployed engine assets available. A future incompatible rules or encoding
 change uses a new version and bundle directory. The web loader must dispatch old
 links to their retained engine; it must not silently reinterpret them.
 
-The current loader supports version 1 and rejects unknown versions. The current
-build directory is staging output; retaining immutable published bundles is a
-deployment responsibility.
+The current loader uses the version 2 bundle, whose decoder explicitly supports
+version 1 Draw One boards and version 2 boards with either mode. Unknown versions
+are rejected. Existing local version 1 bundles remain in their original directory.
+The build directory is staging output; retaining immutable published bundles is a
+deployment responsibility. New incompatible versions must preserve the supported
+rules and formats or dispatch old links to their archived bundles.

@@ -72,10 +72,27 @@ impl Tableau {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Game {
+    pub(crate) draw_mode: DrawMode,
     pub(crate) stock: Vec<Card>,
     pub(crate) waste: Vec<Card>,
     pub(crate) foundations: [u8; 4],
     pub(crate) tableau: [Tableau; 7],
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum DrawMode {
+    One,
+    #[default]
+    Three,
+}
+
+impl DrawMode {
+    pub fn count(self) -> usize {
+        match self {
+            Self::One => 1,
+            Self::Three => 3,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -123,6 +140,10 @@ pub enum MoveError {
 
 impl Game {
     pub fn deal(seed: u64) -> Self {
+        Self::deal_with_mode(seed, DrawMode::Three)
+    }
+
+    pub fn deal_with_mode(seed: u64, draw_mode: DrawMode) -> Self {
         let mut deck: Vec<_> = (0..52).map(Card).collect();
         deck.shuffle(&mut ChaCha8Rng::seed_from_u64(seed));
         let mut tableau: [Tableau; 7] = std::array::from_fn(|_| Tableau::default());
@@ -136,6 +157,7 @@ impl Game {
             pile.hidden = column;
         }
         Self {
+            draw_mode,
             stock: deck,
             waste: vec![],
             foundations: [0; 4],
@@ -145,6 +167,10 @@ impl Game {
 
     pub fn stock_len(&self) -> usize {
         self.stock.len()
+    }
+
+    pub fn draw_mode(&self) -> DrawMode {
+        self.draw_mode
     }
 
     pub fn waste(&self) -> &[Card] {
@@ -250,8 +276,14 @@ impl Game {
     pub fn apply(&mut self, command: Command) -> Result<(), MoveError> {
         match command {
             Command::Draw => {
-                if let Some(card) = self.stock.pop() {
-                    self.waste.push(card);
+                if !self.stock.is_empty() {
+                    for _ in 0..self.draw_mode.count().min(self.stock.len()) {
+                        self.waste.push(
+                            self.stock
+                                .pop()
+                                .expect("draw count is bounded by stock length"),
+                        );
+                    }
                 } else if !self.waste.is_empty() {
                     // Reverse to preserve the original draw order on each pass.
                     self.stock = self.waste.drain(..).rev().collect();

@@ -10,6 +10,7 @@ fn fixture(piles: &[(&[u8], usize)], waste: &[u8], foundations: [u8; 4]) -> Game
         }
     });
     let mut game = Game {
+        draw_mode: DrawMode::One,
         stock: vec![],
         waste: waste.iter().copied().map(Card).collect(),
         foundations,
@@ -32,6 +33,81 @@ fn source(column: usize, index: usize) -> Source {
 }
 
 #[test]
+fn draw_three_deals_in_order_recycles_and_undoes_as_one_action() {
+    let game = Game::deal(17);
+    assert_eq!(game.draw_mode(), DrawMode::Three);
+    let mut engine = Engine::new(game.clone());
+    engine.execute(Command::Draw).unwrap();
+    assert_eq!(engine.game().stock_len(), 21);
+    assert_eq!(
+        engine.game().waste(),
+        &[game.stock[23], game.stock[22], game.stock[21]]
+    );
+    assert_eq!(
+        engine.game().movable_cards(Source::Waste).unwrap(),
+        &[game.stock[21]]
+    );
+    assert!(engine.undo());
+    assert_eq!(engine.game(), &game);
+    for _ in 0..8 {
+        engine.execute(Command::Draw).unwrap();
+    }
+    assert_eq!(engine.game().stock_len(), 0);
+    assert_eq!(engine.game().waste().len(), 24);
+    engine.execute(Command::Draw).unwrap();
+    assert_eq!(engine.game(), &game);
+}
+
+#[test]
+fn draw_three_handles_short_final_packets_and_exposes_the_previous_waste_card() {
+    let mut game = fixture(&[], &[], [0; 4]);
+    game.draw_mode = DrawMode::Three;
+    game.waste = game.stock.drain(..50).collect();
+    let expected = [game.stock[1], game.stock[0]];
+    game.apply(Command::Draw).unwrap();
+    assert_eq!(game.stock_len(), 0);
+    assert_eq!(&game.waste[50..], &expected);
+    game.validate().unwrap();
+
+    let mut game = fixture(&[], &[12, 27, 0], [0; 4]);
+    game.draw_mode = DrawMode::Three;
+    game.apply(Command::Move {
+        from: Source::Waste,
+        to: Destination::Foundation(0),
+    })
+    .unwrap();
+    assert_eq!(game.waste().last(), Some(&Card(27)));
+    assert_eq!(game.movable_cards(Source::Waste).unwrap(), &[Card(27)]);
+    game.validate().unwrap();
+}
+
+#[test]
+fn urls_preserve_both_modes_and_legacy_links_keep_draw_one_rules() {
+    for mode in [DrawMode::One, DrawMode::Three] {
+        let game = Game::deal_with_mode(42, mode);
+        assert!(game.encode().starts_with("v2:"));
+        assert_eq!(Game::decode(&game.encode()), Ok(game));
+    }
+    let legacy = "v1:AAAAABgAAQACAQMCBAMFBAYFBwYZLSorKAMyLCMnAA8aChgcBSYbDhUdCwwvMBACJB8xExYeBykIFAYSCREzLiEiASANJQQX";
+    let mut game = Game::decode(legacy).unwrap();
+    assert_eq!(game.draw_mode(), DrawMode::One);
+    game.apply(Command::Draw).unwrap();
+    assert_eq!(game.stock_len(), 23);
+    assert_eq!(game.waste().len(), 1);
+    assert_eq!(Game::decode(&game.encode()), Ok(game));
+
+    let encoded = Game::deal(42).encode();
+    let mut bytes = URL_SAFE_NO_PAD.decode(&encoded[3..]).unwrap();
+    for invalid in [0, 2, 4, 255] {
+        bytes[0] = invalid;
+        assert_eq!(
+            Game::decode(&format!("v2:{}", URL_SAFE_NO_PAD.encode(&bytes))),
+            Err(StateError::InvalidState)
+        );
+    }
+}
+
+#[test]
 fn deals_have_the_standard_layout_and_complete_inventory() {
     for seed in 0..100 {
         let game = Game::deal(seed);
@@ -42,7 +118,7 @@ fn deals_have_the_standard_layout_and_complete_inventory() {
             assert_eq!(pile.hidden(), column);
         }
         assert_eq!(Game::decode(&game.encode()).unwrap(), game);
-        assert_eq!(game.encode().len(), 99);
+        assert_eq!(game.encode().len(), 101);
     }
     assert_eq!(Game::deal(42), Game::deal(42));
     assert_ne!(Game::deal(42), Game::deal(43));
@@ -50,7 +126,7 @@ fn deals_have_the_standard_layout_and_complete_inventory() {
 
 #[test]
 fn recycling_restores_stock_order_and_undo_restores_the_previous_state() {
-    let game = Game::deal(17);
+    let game = Game::deal_with_mode(17, DrawMode::One);
     let stock = game.stock.clone();
     let mut engine = Engine::new(game.clone());
     for _ in 0..24 {
@@ -192,11 +268,11 @@ fn winning_state_round_trips_and_empty_stock_rejects_draw() {
 
 #[test]
 fn malformed_links_are_rejected_without_panicking() {
-    for input in ["", "v2:abc", "v1:!", "v1:", "#v1:AAAA"] {
+    for input in ["", "v3:abc", "v1:!", "v1:", "#v1:AAAA"] {
         assert!(Game::decode(input).is_err());
     }
     let game = Game::deal(8);
-    let original = URL_SAFE_NO_PAD.decode(&game.encode()[3..]).unwrap();
+    let original = URL_SAFE_NO_PAD.decode(&game.encode()[3..]).unwrap()[1..].to_vec();
     let encoded = |bytes: &[u8]| format!("v1:{}", URL_SAFE_NO_PAD.encode(bytes));
     for (index, value) in [(0, 14), (4, 255), (7, 255), (20, 52), (20, original[21])] {
         let mut corrupt = original.clone();
@@ -243,7 +319,7 @@ fn legal_play_preserves_inventory_and_serialization() {
                 game = next;
             }
             game.validate().unwrap();
-            assert!(game.encode().len() <= 99);
+            assert!(game.encode().len() <= 101);
             assert_eq!(Game::decode(&game.encode()).unwrap(), game);
         }
     }

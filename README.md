@@ -6,8 +6,10 @@ so a bookmark restores the position without an account or database.
 
 ## Play
 
-Choose **New game** to deal. Draw one card by clicking the stock; click the empty
-stock to recycle the waste. Move cards by dragging and releasing, or by selecting
+Choose **New game** to deal. Draw Three is the default; select Draw One before
+starting a new game for the easier variant. Click the stock to draw up to three
+cards (one in Draw One); click the empty stock to recycle the waste. Only the top
+waste card is playable. Move cards by dragging and releasing, or by selecting
 a card and clicking its destination. Green outlines show legal destinations; red
 outlines explain rejected moves. Double-click a card to send it to its foundation.
 Use **Undo** or Ctrl+Z (Command+Z on macOS); Escape cancels selection or dragging.
@@ -15,7 +17,7 @@ Use **Undo** or Ctrl+Z (Command+Z on macOS); Escape cancels selection or draggin
 Build tableau columns downward in alternating colors. Move complete face-up
 sequences together. Only kings fill empty columns. Build each suit's foundation
 from ace to king. Exposed face-down cards turn over automatically. Stock recycling
-is unlimited. There is no scoring, timer, draw-three variant, or automatic finish
+is unlimited. There is no scoring, timer, or automatic finish
 in this first version.
 
 ## Run on desktop
@@ -38,7 +40,7 @@ cargo install wasm-pack --locked
 From the repository root:
 
 ```sh
-wasm-pack build apps/desktop --target web --out-dir ../../dist/engines/v1 --out-name patience_app --release --no-pack
+wasm-pack build apps/desktop --target web --out-dir ../../dist/engines/v2 --out-name patience_app --release --no-pack
 ```
 
 Copy `web/index.html` to `dist/index.html`, then serve `dist` over HTTP. For example,
@@ -55,8 +57,10 @@ browser. Opening the HTML file directly does not load the WebAssembly applicatio
 local scripts; pass `-Dev` for a debug build.
 
 Deploy the contents of `dist` to static hosting. Preserve released engine bundles
-under `engines/v1/`; future engine versions need separate directories and a loader
-entry. Keep the origin and base path stable for existing bookmarks.
+under their versioned `engines/` directories; future incompatible engine versions
+need separate directories and a loader entry. The current v2 engine also decodes
+legacy v1 links with Draw One rules. Keep the origin and base path stable for
+existing bookmarks.
 
 ## Verify
 

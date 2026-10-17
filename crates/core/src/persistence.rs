@@ -1,7 +1,7 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use thiserror::Error;
 
-use crate::{Card, Game, Tableau};
+use crate::{Card, DrawMode, Game, Tableau};
 
 #[derive(Clone, Copy, Debug, Error, PartialEq, Eq)]
 pub enum StateError {
@@ -14,7 +14,8 @@ pub enum StateError {
 impl Game {
     /// Encodes the complete board as a versioned URL fragment, without the `#`.
     pub fn encode(&self) -> String {
-        let mut bytes = Vec::with_capacity(72);
+        let mut bytes = Vec::with_capacity(73);
+        bytes.push(self.draw_mode.count() as u8);
         bytes.extend(self.foundations);
         bytes.push(self.stock.len() as u8);
         bytes.push(self.waste.len() as u8);
@@ -26,21 +27,35 @@ impl Game {
         for pile in &self.tableau {
             bytes.extend(pile.cards.iter().map(|card| card.0));
         }
-        format!("v1:{}", URL_SAFE_NO_PAD.encode(bytes))
+        format!("v2:{}", URL_SAFE_NO_PAD.encode(bytes))
     }
 
     /// Restores a board after checking its card inventory and pile invariants.
     pub fn decode(fragment: &str) -> Result<Self, StateError> {
         let fragment = fragment.strip_prefix('#').unwrap_or(fragment);
-        let payload = fragment
-            .strip_prefix("v1:")
+        let (version, payload) = fragment
+            .split_once(':')
             .ok_or(StateError::UnsupportedVersion)?;
-        if payload.len() > 96 {
+        if !matches!(version, "v1" | "v2") {
+            return Err(StateError::UnsupportedVersion);
+        }
+        if payload.len() > if version == "v1" { 96 } else { 98 } {
             return Err(StateError::InvalidState);
         }
         let bytes = URL_SAFE_NO_PAD
             .decode(payload)
             .map_err(|_| StateError::InvalidState)?;
+        let (draw_mode, bytes) = if version == "v1" {
+            (DrawMode::One, bytes.as_slice())
+        } else {
+            let (&mode, rest) = bytes.split_first().ok_or(StateError::InvalidState)?;
+            let draw_mode = match mode {
+                1 => DrawMode::One,
+                3 => DrawMode::Three,
+                _ => return Err(StateError::InvalidState),
+            };
+            (draw_mode, rest)
+        };
         if bytes.len() < 20 {
             return Err(StateError::InvalidState);
         }
@@ -66,6 +81,7 @@ impl Game {
             return Err(StateError::InvalidState);
         }
         let game = Self {
+            draw_mode,
             stock,
             waste,
             foundations,

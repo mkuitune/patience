@@ -1,6 +1,6 @@
 use crate::platform::Platform;
 use eframe::egui::{self, Align2, Color32, FontId, Rect, Sense, Stroke, StrokeKind};
-use patience_core::{Card, Command, Destination, Engine, Game, Source, Suit};
+use patience_core::{Card, Command, Destination, DrawMode, Engine, Game, Source, Suit};
 
 const TABLE: Color32 = Color32::from_rgb(20, 91, 61);
 
@@ -9,6 +9,7 @@ pub struct PatienceApp {
     selected: Option<Source>,
     drag: Option<Drag>,
     returning: Option<ReturnAnimation>,
+    next_draw_mode: DrawMode,
     message: String,
     load_error: Option<String>,
     platform: Platform,
@@ -80,6 +81,7 @@ impl PatienceApp {
             selected: None,
             drag: None,
             returning: None,
+            next_draw_mode: DrawMode::Three,
             message: String::new(),
             load_error,
             platform,
@@ -190,7 +192,10 @@ impl PatienceApp {
         }
         if ui
             .interact(stock, ui.id().with("stock"), Sense::click())
-            .on_hover_text("Draw one card; recycle waste when empty.")
+            .on_hover_text(format!(
+                "Draw {} card(s); recycle waste when empty.",
+                game.draw_mode().count()
+            ))
             .clicked()
         {
             click = Some(Click::Stock);
@@ -225,14 +230,25 @@ impl PatienceApp {
 
         let waste = at(1, 0.0);
         slot(ui, waste, "Waste");
-        if let Some(&top) = game.waste().last() {
+        let visible = game.waste().len().min(game.draw_mode().count());
+        for (index, &value) in game
+            .waste()
+            .iter()
+            .skip(game.waste().len() - visible)
+            .enumerate()
+        {
+            let target = waste.translate(egui::vec2(index as f32 * w * 0.48, 0.0));
+            let top = index + 1 == visible;
             cards_to_paint.push((
-                waste,
-                Some(top),
-                self.selected == Some(Source::Waste),
-                Some(Source::Waste),
+                target,
+                Some(value),
+                top && self.selected == Some(Source::Waste),
+                top.then_some(Source::Waste),
             ));
-            let response = ui.interact(waste, ui.id().with("waste"), Sense::click_and_drag());
+            if !top {
+                continue;
+            }
+            let response = ui.interact(target, ui.id().with("waste"), Sense::click_and_drag());
             if response.clicked() || response.double_clicked() {
                 click = Some(Click::Card {
                     source: Source::Waste,
@@ -240,7 +256,7 @@ impl PatienceApp {
                     double: response.double_clicked(),
                 });
             }
-            sources.push((Source::Waste, response, waste));
+            sources.push((Source::Waste, response, target));
         }
         for (suit, kind) in Suit::ALL.into_iter().enumerate() {
             let target = at(3 + suit, 0.0);
@@ -507,8 +523,23 @@ impl eframe::App for PatienceApp {
             ui.horizontal_wrapped(|ui| {
                 ui.heading("Klondike");
                 ui.add_space(12.0);
+                egui::ComboBox::from_id_salt("new_game_draw_mode")
+                    .selected_text(format!("Draw {}", self.next_draw_mode.count()))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(
+                            &mut self.next_draw_mode,
+                            DrawMode::Three,
+                            "Draw three",
+                        );
+                        ui.selectable_value(&mut self.next_draw_mode, DrawMode::One, "Draw one");
+                    })
+                    .response
+                    .on_hover_text(
+                        "Rules for the next new game. The current game keeps its rules.",
+                    );
                 if ui.button("New game").clicked() {
-                    self.engine = Engine::new(Game::deal(rand::random()));
+                    self.engine =
+                        Engine::new(Game::deal_with_mode(rand::random(), self.next_draw_mode));
                     self.selected = None;
                     self.drag = None;
                     self.returning = None;
@@ -531,7 +562,8 @@ impl eframe::App for PatienceApp {
                     self.save_url();
                 }
                 ui.label(format!(
-                    "Draw one · {} / 52",
+                    "Draw {} · {} / 52",
+                    self.engine.game().draw_mode().count(),
                     self.engine.game().foundation_count()
                 ));
                 if self.engine.game().is_won() {
@@ -639,6 +671,7 @@ mod tests {
             selected: None,
             drag: None,
             returning: None,
+            next_draw_mode: DrawMode::Three,
             message: String::new(),
             load_error: None,
             platform: Platform::new(ctx),
