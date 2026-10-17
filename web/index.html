@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#145b3d">
+  <title>Klondike</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #145b3d; color: #fff; font: 16px system-ui, sans-serif; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    #status { position: absolute; inset: 0; display: grid; place-content: center; padding: 24px; }
+    #status p { max-width: 36em; }
+    a { color: #ffe09a; }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="Klondike game board"></canvas>
+  <div id="status" role="status"><p>Loading Klondike…</p></div>
+  <noscript>This game requires JavaScript and WebAssembly.</noscript>
+  <script type="module">
+    const status = document.getElementById('status');
+    function fail(message) {
+      status.replaceChildren();
+      const text = document.createElement('p');
+      text.textContent = message;
+      const fresh = document.createElement('a');
+      fresh.href = location.pathname + location.search;
+      fresh.textContent = 'Start a new game';
+      status.append(text, fresh);
+    }
+    function engineVersion() {
+      const fragment = location.hash.slice(1);
+      return fragment ? fragment.split(':', 1)[0] : 'v1';
+    }
+    const version = engineVersion();
+    if (version !== 'v1') {
+      fail('This game link uses an unsupported engine version. The link has been left unchanged.');
+    } else {
+      try {
+        const engine = await import('./engines/v1/patience_app.js');
+        await engine.default();
+        await engine.start(document.getElementById('game'));
+        status.remove();
+        // A future loader must select the matching archived engine on navigation.
+        window.addEventListener('hashchange', () => {
+          if (engineVersion() !== version) location.reload();
+        });
+      } catch (error) {
+        console.error(error);
+        fail('The game could not start. Use a browser with WebGPU or WebGL 2 support on localhost or HTTPS.');
+      }
+    }
+  </script>
+</body>
+</html>

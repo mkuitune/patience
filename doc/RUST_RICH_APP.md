@@ -131,6 +131,25 @@ and history costs justify them.
 Keep persistence versions explicit. Validate decoded state before accepting it.
 Persist stable application identifiers and data rather than renderer handles.
 
+### Interaction and state transitions
+
+Use an Elm-style update flow: an application event produces a new authoritative
+state or a typed rejection. The engine commits accepted transitions and exposes
+the resulting state view to presentation and persistence. A direct return is
+sufficient publication; introduce subscriptions only when actual consumers need
+them.
+
+For interactions that propose an edit, let presentation query the kernel before
+committing. The query returns legal or illegal with an enumerated reason and
+does not mutate application state. Presentation uses that result for activation
+highlights and rejection feedback. Release commits the proposed edit; the kernel
+validates it again. Cancellation leaves authoritative state unchanged.
+
+Keep continuous simulation updates separate from undoable user edits. The same
+ownership rule applies: engine logic advances authoritative state, and rendering
+consumes published state without advancing application rules. The detailed
+presentation and scheduling model remains part of the TODO below.
+
 ## Rendering and composition
 
 Use the `wgpu` device and queue provided by the `eframe` integration. Keep one
