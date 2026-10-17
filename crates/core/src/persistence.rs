@@ -1,7 +1,7 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use thiserror::Error;
 
-use crate::{Card, DrawMode, Game, Tableau};
+use crate::{Card, Game, Tableau};
 
 #[derive(Clone, Copy, Debug, Error, PartialEq, Eq)]
 pub enum StateError {
@@ -14,8 +14,8 @@ pub enum StateError {
 impl Game {
     /// Encodes the complete board as a versioned URL fragment, without the `#`.
     pub fn encode(&self) -> String {
-        let mut bytes = Vec::with_capacity(73);
-        bytes.push(self.draw_mode.count() as u8);
+        let mut bytes = Vec::with_capacity(77);
+        bytes.push(3);
         bytes.extend(self.foundations);
         bytes.push(self.stock.len() as u8);
         bytes.push(self.waste.len() as u8);
@@ -27,7 +27,8 @@ impl Game {
         for pile in &self.tableau {
             bytes.extend(pile.cards.iter().map(|card| card.0));
         }
-        format!("v2:{}", URL_SAFE_NO_PAD.encode(bytes))
+        bytes.extend(self.foundation_suits);
+        format!("v1:{}", URL_SAFE_NO_PAD.encode(bytes))
     }
 
     /// Restores a board after checking its card inventory and pile invariants.
@@ -36,26 +37,19 @@ impl Game {
         let (version, payload) = fragment
             .split_once(':')
             .ok_or(StateError::UnsupportedVersion)?;
-        if !matches!(version, "v1" | "v2") {
+        if version != "v1" {
             return Err(StateError::UnsupportedVersion);
         }
-        if payload.len() > if version == "v1" { 96 } else { 98 } {
+        if payload.len() > 103 {
             return Err(StateError::InvalidState);
         }
         let bytes = URL_SAFE_NO_PAD
             .decode(payload)
             .map_err(|_| StateError::InvalidState)?;
-        let (draw_mode, bytes) = if version == "v1" {
-            (DrawMode::One, bytes.as_slice())
-        } else {
-            let (&mode, rest) = bytes.split_first().ok_or(StateError::InvalidState)?;
-            let draw_mode = match mode {
-                1 => DrawMode::One,
-                3 => DrawMode::Three,
-                _ => return Err(StateError::InvalidState),
-            };
-            (draw_mode, rest)
-        };
+        let (&rules, bytes) = bytes.split_first().ok_or(StateError::InvalidState)?;
+        if rules != 3 {
+            return Err(StateError::InvalidState);
+        }
         if bytes.len() < 20 {
             return Err(StateError::InvalidState);
         }
@@ -77,14 +71,14 @@ impl Game {
             pile.cards = take(bytes[6 + column * 2] as usize)?;
             pile.hidden = bytes[7 + column * 2] as usize;
         }
-        if cursor != bytes.len() {
-            return Err(StateError::InvalidState);
-        }
+        let foundation_suits = bytes[cursor..]
+            .try_into()
+            .map_err(|_| StateError::InvalidState)?;
         let game = Self {
-            draw_mode,
             stock,
             waste,
             foundations,
+            foundation_suits,
             tableau,
         };
         game.validate()?;
@@ -92,6 +86,11 @@ impl Game {
     }
 
     pub(crate) fn validate(&self) -> Result<(), StateError> {
+        let mut suits = self.foundation_suits;
+        suits.sort_unstable();
+        if suits != [0, 1, 2, 3] {
+            return Err(StateError::InvalidState);
+        }
         let mut seen = [false; 52];
         let mut mark = |card: Card| -> Result<(), StateError> {
             let slot = seen

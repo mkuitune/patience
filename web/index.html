@@ -30,20 +30,19 @@
     }
     function engineVersion() {
       const fragment = location.hash.slice(1);
-      return fragment ? fragment.split(':', 1)[0] : 'v2';
+      return fragment ? fragment.split(':', 1)[0] : 'v1';
     }
     const version = engineVersion();
-    if (!['v1', 'v2'].includes(version)) {
+    if (version !== 'v1') {
       fail('This game link uses an unsupported engine version. The link has been left unchanged.');
     } else {
       try {
-        const engine = await import('./engines/v2/patience_app.js');
+        const engine = await import('./engines/v1/patience_app.js');
         await engine.default();
         await engine.start(document.getElementById('game'));
         status.remove();
-        // Both supported formats have explicit rule modes in the current engine.
         window.addEventListener('hashchange', () => {
-          if (!['v1', 'v2'].includes(engineVersion())) location.reload();
+          if (engineVersion() !== 'v1') location.reload();
         });
       } catch (error) {
         console.error(error);

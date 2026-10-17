@@ -1,15 +1,20 @@
 use crate::platform::Platform;
 use eframe::egui::{self, Align2, Color32, FontId, Rect, Sense, Stroke, StrokeKind};
-use patience_core::{Card, Command, Destination, DrawMode, Engine, Game, Source, Suit};
+use patience_core::{Card, Command, Destination, Engine, Game, Source};
 
 const TABLE: Color32 = Color32::from_rgb(20, 91, 61);
 
 pub struct PatienceApp {
     engine: Engine,
+    waste_fan_count: usize,
+    undo_waste_fan_count: Option<usize>,
     selected: Option<Source>,
     drag: Option<Drag>,
     returning: Option<ReturnAnimation>,
-    next_draw_mode: DrawMode,
+    help: bool,
+    teach: bool,
+    rejected: Option<RejectedDrop>,
+    message_is_rule: bool,
     message: String,
     load_error: Option<String>,
     platform: Platform,
@@ -28,6 +33,12 @@ struct ReturnAnimation {
 }
 
 const RETURN_SECONDS: f64 = 0.18;
+const REJECTION_SECONDS: f64 = 0.20;
+
+struct RejectedDrop {
+    destination: Destination,
+    started_at: Option<f64>,
+}
 
 fn belongs_to(card: Source, moving: Source) -> bool {
     match (card, moving) {
@@ -39,6 +50,14 @@ fn belongs_to(card: Source, moving: Source) -> bool {
             },
         ) => column == from && index >= first,
         _ => card == moving,
+    }
+}
+
+fn same_pile(from: Source, to: Destination) -> bool {
+    match (from, to) {
+        (Source::Tableau { column, .. }, Destination::Tableau(target)) => column == target,
+        (Source::Foundation(suit), Destination::Foundation(target)) => suit == target,
+        _ => false,
     }
 }
 
@@ -78,10 +97,15 @@ impl PatienceApp {
         };
         let mut app = Self {
             engine: Engine::new(game),
+            waste_fan_count: 0,
+            undo_waste_fan_count: None,
             selected: None,
             drag: None,
             returning: None,
-            next_draw_mode: DrawMode::Three,
+            help: true,
+            teach: false,
+            rejected: None,
+            message_is_rule: false,
             message: String::new(),
             load_error,
             platform,
@@ -94,25 +118,73 @@ impl PatienceApp {
 
     fn save_url(&mut self) {
         if let Err(error) = self.platform.save(&self.engine.game().encode()) {
+            self.message_is_rule = false;
             self.message = format!("Could not update the bookmark URL: {error}");
         }
     }
 
     fn execute(&mut self, command: Command) -> bool {
+        if matches!(command, Command::Move { from, to } if same_pile(from, to)) {
+            self.selected = None;
+            self.drag = None;
+            self.returning = None;
+            self.rejected = None;
+            if self.message_is_rule {
+                self.message.clear();
+            }
+            return false;
+        }
+        let waste_before = self.engine.game().waste().len();
         match self.engine.execute(command) {
             Ok(_) => {
+                self.undo_waste_fan_count = Some(self.waste_fan_count);
+                self.waste_fan_count = match command {
+                    Command::Draw => self
+                        .engine
+                        .game()
+                        .waste()
+                        .len()
+                        .saturating_sub(waste_before),
+                    Command::Move {
+                        from: Source::Waste,
+                        ..
+                    } => self.waste_fan_count.saturating_sub(1),
+                    _ => self.waste_fan_count,
+                };
                 self.selected = None;
                 self.drag = None;
                 self.returning = None;
+                self.rejected = None;
                 self.message.clear();
                 self.save_url();
                 true
             }
             Err(error) => {
+                self.message_is_rule = true;
                 self.message = error.to_string();
+                if let Command::Move { to, .. } = command {
+                    self.rejected = Some(RejectedDrop {
+                        destination: to,
+                        started_at: None,
+                    });
+                }
                 false
             }
         }
+    }
+
+    fn undo(&mut self) -> bool {
+        if !self.engine.undo() {
+            return false;
+        }
+        self.waste_fan_count = self.undo_waste_fan_count.take().unwrap_or(0);
+        self.rejected = None;
+        self.selected = None;
+        self.drag = None;
+        self.returning = None;
+        self.message.clear();
+        self.save_url();
+        true
     }
 
     fn clicked(&mut self, click: Click) {
@@ -137,6 +209,7 @@ impl PatienceApp {
                     {
                         self.execute(Command::Move { from: source, to });
                     } else {
+                        self.message_is_rule = true;
                         self.message = "That card cannot move to a foundation yet.".into();
                     }
                     return;
@@ -190,14 +263,13 @@ impl PatienceApp {
         if game.stock_len() > 0 {
             paint_card(ui, stock, None, false);
         }
-        if ui
-            .interact(stock, ui.id().with("stock"), Sense::click())
-            .on_hover_text(format!(
-                "Draw {} card(s); recycle waste when empty.",
-                game.draw_mode().count()
-            ))
-            .clicked()
-        {
+        let stock_response = ui.interact(stock, ui.id().with("stock"), Sense::click());
+        let stock_response = if self.help {
+            stock_response.on_hover_text("Draw three cards; recycle waste when empty.")
+        } else {
+            stock_response
+        };
+        if stock_response.clicked() {
             click = Some(Click::Stock);
         }
         let ink = Color32::from_white_alpha(200);
@@ -229,8 +301,8 @@ impl PatienceApp {
         );
 
         let waste = at(1, 0.0);
-        slot(ui, waste, "Waste");
-        let visible = game.waste().len().min(game.draw_mode().count());
+        slot(ui, waste, "");
+        let visible = game.waste().len().min(self.waste_fan_count.max(1));
         for (index, &value) in game
             .waste()
             .iter()
@@ -258,9 +330,9 @@ impl PatienceApp {
             }
             sources.push((Source::Waste, response, target));
         }
-        for (suit, kind) in Suit::ALL.into_iter().enumerate() {
+        for suit in 0..4 {
             let target = at(3 + suit, 0.0);
-            slot(ui, target, kind.symbol());
+            slot(ui, target, "");
             if let Some(top) = game.foundation(suit) {
                 cards_to_paint.push((
                     target,
@@ -348,6 +420,7 @@ impl PatienceApp {
                     offset: press - rect.min,
                 });
                 self.returning = None;
+                self.rejected = None;
                 self.selected = Some(*source);
                 self.message.clear();
             }
@@ -402,7 +475,42 @@ impl PatienceApp {
             .iter()
             .rev()
             .find(|(_, response, _)| response.contains_pointer());
-        if let (Some(from), Some((to, _, rect))) = (self.selected, candidate) {
+        if self.teach {
+            for command in game.suggested_moves() {
+                let endpoints = match command {
+                    Command::Move { from, to } => {
+                        let from = sources
+                            .iter()
+                            .find(|(source, _, _)| *source == from)
+                            .map(|(_, response, _)| response.rect);
+                        let to = targets
+                            .iter()
+                            .rev()
+                            .find(|(destination, _, _)| *destination == to)
+                            .map(|(_, _, rect)| *rect);
+                        from.zip(to)
+                    }
+                    Command::Draw => {
+                        click_marker(ui.painter(), stock);
+                        None
+                    }
+                };
+                if let Some((from, to)) = endpoints {
+                    let over_cards = matches!(
+                        command,
+                        Command::Move {
+                            from: Source::Waste,
+                            to: Destination::Foundation(_),
+                        }
+                    );
+                    move_arrow(ui.painter(), from, to, over_cards);
+                }
+            }
+        }
+        if self.help
+            && let (Some(from), Some((to, _, rect))) = (self.selected, candidate)
+            && !same_pile(from, *to)
+        {
             let assessment = game.assess_move(from, *to);
             let color = if assessment.is_ok() {
                 Color32::from_rgb(80, 255, 125)
@@ -427,6 +535,36 @@ impl PatienceApp {
                             ui.colored_label(color, reason.to_string());
                         });
                     });
+            }
+        }
+        if let Some(rejected) = &mut self.rejected {
+            let now = ui.input(|input| input.time);
+            let start = *rejected.started_at.get_or_insert(now);
+            let progress = ((now - start) / REJECTION_SECONDS).clamp(0.0, 1.0) as f32;
+            if progress >= 1.0 {
+                self.rejected = None;
+            } else if !self.help {
+                if let Some((_, _, rect)) = targets
+                    .iter()
+                    .rev()
+                    .find(|(to, _, _)| *to == rejected.destination)
+                {
+                    ui.painter().rect_stroke(
+                        rect.expand(3.0),
+                        5.0,
+                        Stroke::new(
+                            3.0,
+                            Color32::from_rgba_unmultiplied(
+                                255,
+                                65,
+                                65,
+                                (255.0 * (1.0 - progress)) as u8,
+                            ),
+                        ),
+                        StrokeKind::Outside,
+                    );
+                }
+                ui.ctx().request_repaint();
             }
         }
         if let Some(drag) = &self.drag {
@@ -487,6 +625,9 @@ impl eframe::App for PatienceApp {
             match Game::decode(&fragment) {
                 Ok(game) => {
                     self.engine = Engine::new(game);
+                    self.waste_fan_count = 0;
+                    self.undo_waste_fan_count = None;
+                    self.rejected = None;
                     self.selected = None;
                     self.drag = None;
                     self.returning = None;
@@ -494,6 +635,7 @@ impl eframe::App for PatienceApp {
                     self.message.clear();
                 }
                 Err(error) => {
+                    self.rejected = None;
                     self.returning = None;
                     self.load_error = Some(error.to_string());
                 }
@@ -511,35 +653,18 @@ impl eframe::App for PatienceApp {
         }
         if self.load_error.is_none()
             && ctx.input_mut(|input| input.consume_key(egui::Modifiers::COMMAND, egui::Key::Z))
-            && self.engine.undo()
         {
-            self.selected = None;
-            self.drag = None;
-            self.returning = None;
-            self.message.clear();
-            self.save_url();
+            self.undo();
         }
         egui::TopBottomPanel::top("toolbar").show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.heading("Klondike");
                 ui.add_space(12.0);
-                egui::ComboBox::from_id_salt("new_game_draw_mode")
-                    .selected_text(format!("Draw {}", self.next_draw_mode.count()))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(
-                            &mut self.next_draw_mode,
-                            DrawMode::Three,
-                            "Draw three",
-                        );
-                        ui.selectable_value(&mut self.next_draw_mode, DrawMode::One, "Draw one");
-                    })
-                    .response
-                    .on_hover_text(
-                        "Rules for the next new game. The current game keeps its rules.",
-                    );
                 if ui.button("New game").clicked() {
-                    self.engine =
-                        Engine::new(Game::deal_with_mode(rand::random(), self.next_draw_mode));
+                    self.engine = Engine::new(Game::deal(rand::random()));
+                    self.waste_fan_count = 0;
+                    self.undo_waste_fan_count = None;
+                    self.rejected = None;
                     self.selected = None;
                     self.drag = None;
                     self.returning = None;
@@ -547,38 +672,56 @@ impl eframe::App for PatienceApp {
                     self.message.clear();
                     self.save_url();
                 }
-                if ui
-                    .add_enabled(
-                        self.load_error.is_none() && self.engine.can_undo(),
-                        egui::Button::new("Undo"),
-                    )
-                    .clicked()
-                {
-                    self.engine.undo();
-                    self.selected = None;
-                    self.drag = None;
-                    self.returning = None;
-                    self.message.clear();
-                    self.save_url();
-                }
-                ui.label(format!(
-                    "Draw {} · {} / 52",
-                    self.engine.game().draw_mode().count(),
-                    self.engine.game().foundation_count()
+                let undo = ui.add_enabled(
+                    self.load_error.is_none() && self.engine.can_undo(),
+                    egui::Button::new("").min_size(egui::vec2(38.0, 36.0)),
+                );
+                let ink = if undo.enabled() {
+                    ui.visuals().text_color()
+                } else {
+                    ui.visuals().weak_text_color()
+                };
+                let center = undo.rect.center();
+                ui.painter().line_segment(
+                    [center + egui::vec2(8.0, 0.0), center - egui::vec2(8.0, 0.0)],
+                    Stroke::new(1.6, ink),
+                );
+                ui.painter().add(egui::Shape::line(
+                    vec![
+                        center + egui::vec2(-2.0, -6.0),
+                        center + egui::vec2(-8.0, 0.0),
+                        center + egui::vec2(-2.0, 6.0),
+                    ],
+                    Stroke::new(1.6, ink),
                 ));
+                undo.widget_info(|| {
+                    egui::WidgetInfo::labeled(
+                        egui::WidgetType::Button,
+                        self.engine.can_undo(),
+                        "Undo last move",
+                    )
+                });
+                let undo = if self.help {
+                    undo.on_hover_text("Undo last move")
+                } else {
+                    undo
+                };
+                if undo.clicked() {
+                    self.undo();
+                }
+                if ui.checkbox(&mut self.help, "Help").changed() && self.message_is_rule {
+                    self.message.clear();
+                }
+                ui.checkbox(&mut self.teach, "Teach");
                 if self.engine.game().is_won() {
                     ui.strong("You won!");
                 }
             });
         });
-        egui::TopBottomPanel::bottom("help").show(ctx, |ui| {
-            ui.label("Drag a card or sequence and release on its destination. Green allows the move; red explains why it is blocked.");
-            ui.small("You can also click a card, then its destination. Double-click sends a card to a foundation. Esc cancels.");
-            #[cfg(target_arch = "wasm32")]
-            ui.small("The address saves your board after every move. Bookmark it to continue later.");
-            if !self.message.is_empty() { ui.colored_label(Color32::YELLOW, &self.message); }
-        });
         egui::CentralPanel::default().frame(egui::Frame::new().fill(TABLE).inner_margin(12.0)).show(ctx, |ui| {
+            if !self.message.is_empty() && !self.message_is_rule {
+                ui.colored_label(Color32::WHITE, &self.message);
+            }
             if let Some(error) = &self.load_error {
                 ui.colored_label(Color32::WHITE, error);
                 ui.label("The link has been left unchanged. Open a valid game link or choose New game.");
@@ -602,6 +745,76 @@ fn slot(ui: &egui::Ui, rect: Rect, label: &str) {
         FontId::proportional(28.0),
         Color32::from_white_alpha(130),
     );
+}
+
+fn click_marker(painter: &egui::Painter, target: Rect) {
+    let tip = target.right_top() + egui::vec2(-24.0, 20.0);
+    let ink = Color32::from_rgb(255, 222, 146);
+    let cursor = [
+        (0.0, 0.0),
+        (0.0, 20.0),
+        (5.0, 15.0),
+        (10.0, 24.0),
+        (14.0, 22.0),
+        (9.0, 13.0),
+        (17.0, 12.0),
+        (0.0, 0.0),
+    ]
+    .map(|(x, y)| tip + egui::vec2(x, y))
+    .to_vec();
+    painter.add(egui::Shape::line(
+        cursor.clone(),
+        Stroke::new(4.0, Color32::from_black_alpha(120)),
+    ));
+    painter.add(egui::Shape::line(cursor, Stroke::new(1.6, ink)));
+    for (start, end) in [
+        ((-6.0, -3.0), (-12.0, -6.0)),
+        ((0.0, -7.0), (0.0, -13.0)),
+        ((6.0, -4.0), (11.0, -9.0)),
+    ] {
+        painter.line_segment(
+            [
+                tip + egui::vec2(start.0, start.1),
+                tip + egui::vec2(end.0, end.1),
+            ],
+            Stroke::new(1.6, ink),
+        );
+    }
+}
+
+fn move_arrow(painter: &egui::Painter, from: Rect, to: Rect, over_cards: bool) {
+    let start = from.center();
+    let end = to.center();
+    let direction = if end.y > start.y + 40.0 { 1.0 } else { -1.0 };
+    let mut bend = (start.distance(end) * 0.22).clamp(24.0, 90.0);
+    if over_cards {
+        bend = bend.min(from.height().min(to.height()) * 0.4);
+    }
+    let control1 = start + egui::vec2(0.0, direction * bend);
+    let tangent = (end - control1).normalized();
+    let control2 = end - tangent * bend;
+    let points = [start, control1, control2, end];
+    let normal = egui::vec2(-tangent.y, tangent.x);
+    let head = vec![
+        end - tangent * 8.0 + normal * 4.0,
+        end,
+        end - tangent * 8.0 - normal * 4.0,
+    ];
+    let ink = Color32::from_rgba_unmultiplied(255, 222, 146, 220);
+    for stroke in [
+        Stroke::new(4.0, Color32::from_black_alpha(95)),
+        Stroke::new(1.6, ink),
+    ] {
+        painter.add(egui::epaint::CubicBezierShape::from_points_stroke(
+            points,
+            false,
+            Color32::TRANSPARENT,
+            stroke,
+        ));
+        painter.add(egui::Shape::line(head.clone(), stroke));
+    }
+    painter.circle_filled(start, 4.5, Color32::from_black_alpha(95));
+    painter.circle_filled(start, 3.0, ink);
 }
 
 fn paint_card(ui: &egui::Ui, rect: Rect, value: Option<Card>, selected: bool) {
@@ -668,17 +881,26 @@ mod tests {
     fn app(game: Game, ctx: &egui::Context) -> PatienceApp {
         PatienceApp {
             engine: Engine::new(game),
+            waste_fan_count: 0,
+            undo_waste_fan_count: None,
             selected: None,
             drag: None,
             returning: None,
-            next_draw_mode: DrawMode::Three,
+            help: true,
+            teach: false,
+            rejected: None,
+            message_is_rule: false,
             message: String::new(),
             load_error: None,
             platform: Platform::new(ctx),
         }
     }
 
-    fn frame(app: &mut PatienceApp, ctx: &egui::Context, events: Vec<egui::Event>) {
+    fn frame(
+        app: &mut PatienceApp,
+        ctx: &egui::Context,
+        events: Vec<egui::Event>,
+    ) -> egui::FullOutput {
         let input = egui::RawInput {
             screen_rect: Some(Rect::from_min_size(
                 egui::Pos2::ZERO,
@@ -688,11 +910,11 @@ mod tests {
             focused: true,
             ..Default::default()
         };
-        let _ = ctx.run(input, |ctx| {
+        ctx.run(input, |ctx| {
             egui::CentralPanel::default()
                 .frame(egui::Frame::NONE)
                 .show(ctx, |ui| app.board(ui));
-        });
+        })
     }
 
     fn button(position: egui::Pos2, pressed: bool) -> egui::Event {
@@ -702,6 +924,49 @@ mod tests {
             pressed,
             modifiers: egui::Modifiers::NONE,
         }
+    }
+
+    #[test]
+    fn waste_fan_shrinks_without_refilling_and_undo_restores_it() {
+        let (game, moves) = (0..10_000)
+            .find_map(|seed| {
+                let mut game = Game::deal(seed);
+                game.apply(Command::Draw).unwrap();
+                let before_draw = game.clone();
+                game.apply(Command::Draw).unwrap();
+                let mut moves = Vec::new();
+                for _ in 0..3 {
+                    let command = game.legal_moves().into_iter().find(|command| {
+                        matches!(
+                            command,
+                            Command::Move {
+                                from: Source::Waste,
+                                ..
+                            }
+                        )
+                    })?;
+                    game.apply(command).unwrap();
+                    moves.push(command);
+                }
+                Some((before_draw, moves))
+            })
+            .expect("a deal with three playable waste cards");
+        let ctx = egui::Context::default();
+        let mut app = app(game, &ctx);
+        assert!(app.execute(Command::Draw));
+        assert_eq!(app.waste_fan_count, 3);
+        for (command, remaining) in moves.into_iter().zip([2, 1, 0]) {
+            assert!(app.execute(command));
+            assert_eq!(app.waste_fan_count, remaining);
+        }
+        assert_eq!(app.engine.game().waste().len(), 3);
+        assert!(app.undo());
+        assert_eq!(app.waste_fan_count, 1);
+        assert_eq!(app.engine.game().waste().len(), 4);
+        assert!(app.execute(Command::Draw));
+        assert_eq!(app.waste_fan_count, 3);
+        assert!(app.undo());
+        assert_eq!(app.waste_fan_count, 1);
     }
 
     fn playable_pair(legal: bool) -> (Game, Source, Destination) {
@@ -729,6 +994,127 @@ mod tests {
             80.0 + column as f32 * 122.0 + 54.0,
             201.2 + column as f32 * 19.44 + 75.6,
         )
+    }
+
+    fn has_outline(output: &egui::FullOutput, color: Color32) -> bool {
+        output.shapes.iter().any(
+            |shape| matches!(&shape.shape, egui::Shape::Rect(rect) if rect.stroke.color == color),
+        )
+    }
+
+    #[test]
+    fn returning_to_the_original_column_is_neutral_and_preserves_undo() {
+        let (game, source, to) = playable_pair(true);
+        let Destination::Tableau(column) = to else {
+            unreachable!()
+        };
+        let game = game.updated(Command::Move { from: source, to }).unwrap();
+        for help in [false, true] {
+            let ctx = egui::Context::default();
+            let mut app = app(game.clone(), &ctx);
+            app.help = help;
+            app.engine.execute(Command::Draw).unwrap();
+            let before = app.engine.game().clone();
+            let start = column_center(column) + egui::vec2(0.0, 38.88);
+            let target = column_center(column) - egui::vec2(0.0, 65.6);
+            drag(&mut app, &ctx, start, target);
+            let preview = frame(&mut app, &ctx, vec![]);
+            assert!(!has_outline(&preview, Color32::from_rgb(255, 80, 80)));
+            assert!(!has_outline(&preview, Color32::from_rgb(80, 255, 125)));
+            frame(&mut app, &ctx, vec![button(target, false)]);
+            assert!(app.message.is_empty());
+            assert!(app.rejected.is_none());
+            assert_eq!(app.engine.game(), &before);
+            assert!(app.engine.undo());
+            assert_eq!(app.engine.game(), &game);
+        }
+    }
+
+    #[test]
+    fn help_controls_live_highlights_and_quiet_mode_flashes_only_after_release() {
+        let green = Color32::from_rgb(80, 255, 125);
+        for help in [false, true] {
+            let (game, source, to) = playable_pair(true);
+            let Source::Tableau { column: from, .. } = source else {
+                unreachable!()
+            };
+            let Destination::Tableau(destination) = to else {
+                unreachable!()
+            };
+            let ctx = egui::Context::default();
+            let mut app = app(game, &ctx);
+            app.help = help;
+            drag(
+                &mut app,
+                &ctx,
+                column_center(from),
+                column_center(destination),
+            );
+            let output = frame(&mut app, &ctx, vec![]);
+            assert_eq!(has_outline(&output, green), help);
+        }
+
+        let (game, source, to) = playable_pair(false);
+        let Source::Tableau { column: from, .. } = source else {
+            unreachable!()
+        };
+        let Destination::Tableau(destination) = to else {
+            unreachable!()
+        };
+        let ctx = egui::Context::default();
+        let mut app = app(game.clone(), &ctx);
+        app.help = false;
+        let position = column_center(destination);
+        drag(&mut app, &ctx, column_center(from), position);
+        assert!(app.rejected.is_none());
+        let preview = frame(&mut app, &ctx, vec![]);
+        assert!(!has_outline(&preview, Color32::from_rgb(255, 80, 80)));
+        frame(&mut app, &ctx, vec![button(position, false)]);
+        assert!(app.returning.is_some());
+        assert!(app.rejected.is_some());
+        let flash = frame(&mut app, &ctx, vec![]);
+        assert!(has_outline(&flash, Color32::from_rgb(255, 65, 65)));
+        for _ in 0..20 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        assert!(app.rejected.is_none());
+        assert!(app.returning.is_none());
+        assert_eq!(app.engine.game(), &game);
+        assert!(!app.engine.can_undo());
+    }
+
+    #[test]
+    fn teach_draws_every_legal_move_and_does_not_intercept_card_drags() {
+        let (game, source, to) = playable_pair(true);
+        let expected = game.updated(Command::Move { from: source, to }).unwrap();
+        let count = game
+            .suggested_moves()
+            .iter()
+            .filter(|command| matches!(command, Command::Move { .. }))
+            .count();
+        let ctx = egui::Context::default();
+        let mut app = app(game.clone(), &ctx);
+        app.help = false;
+        app.teach = true;
+        frame(&mut app, &ctx, vec![]);
+        let output = frame(&mut app, &ctx, vec![]);
+        let curves = output
+            .shapes
+            .iter()
+            .filter(|shape| matches!(shape.shape, egui::Shape::CubicBezier(_)))
+            .count();
+        assert_eq!(curves, count * 2);
+        assert_eq!(app.engine.game(), &game);
+        let Source::Tableau { column: from, .. } = source else {
+            unreachable!()
+        };
+        let Destination::Tableau(destination) = to else {
+            unreachable!()
+        };
+        let position = column_center(destination);
+        drag(&mut app, &ctx, column_center(from), position);
+        frame(&mut app, &ctx, vec![button(position, false)]);
+        assert_eq!(app.engine.game(), &expected);
     }
 
     fn drag(app: &mut PatienceApp, ctx: &egui::Context, from: egui::Pos2, to: egui::Pos2) {

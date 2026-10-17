@@ -10,10 +10,10 @@ fn fixture(piles: &[(&[u8], usize)], waste: &[u8], foundations: [u8; 4]) -> Game
         }
     });
     let mut game = Game {
-        draw_mode: DrawMode::One,
         stock: vec![],
         waste: waste.iter().copied().map(Card).collect(),
         foundations,
+        foundation_suits: [0, 1, 2, 3],
         tableau,
     };
     game.stock = (0..52)
@@ -33,9 +33,182 @@ fn source(column: usize, index: usize) -> Source {
 }
 
 #[test]
+fn aces_choose_any_empty_foundation_and_teaching_uses_the_leftmost() {
+    for suit in 0..4 {
+        for slot in 0..4 {
+            let ace = Card(suit * 13);
+            let game = fixture(&[], &[ace.0], [0; 4]);
+            let moves = game.suggested_moves();
+            for target in 0..4 {
+                let command = Command::Move {
+                    from: Source::Waste,
+                    to: Destination::Foundation(target),
+                };
+                assert!(game.can_move(Source::Waste, Destination::Foundation(target)));
+                assert_eq!(moves.contains(&command), target == 0);
+            }
+            let mut engine = Engine::new(game.clone());
+            engine
+                .execute(Command::Move {
+                    from: Source::Waste,
+                    to: Destination::Foundation(slot),
+                })
+                .unwrap();
+            assert_eq!(engine.game().foundation(slot), Some(ace));
+            assert_eq!(
+                Game::decode(&engine.game().encode()).unwrap(),
+                *engine.game()
+            );
+            assert!(engine.undo());
+            assert_eq!(*engine.game(), game);
+
+            let mut next = game
+                .updated(Command::Move {
+                    from: Source::Waste,
+                    to: Destination::Foundation(slot),
+                })
+                .unwrap();
+            let two = Card(ace.0 + 1);
+            let index = next.stock.iter().position(|&card| card == two).unwrap();
+            next.stock.remove(index);
+            next.waste.push(two);
+            assert!(next.can_move(Source::Waste, Destination::Foundation(slot)));
+            for target in 0..4 {
+                if target != slot {
+                    assert_eq!(
+                        next.assess_move(Source::Waste, Destination::Foundation(target)),
+                        Err(MoveError::FoundationWrongRank)
+                    );
+                }
+            }
+            next.apply(Command::Move {
+                from: Source::Waste,
+                to: Destination::Foundation(slot),
+            })
+            .unwrap();
+            assert_eq!(next.foundation(slot), Some(two));
+            next.validate().unwrap();
+        }
+    }
+}
+
+#[test]
+fn foundation_layout_is_required_and_must_be_a_suit_permutation() {
+    let game = Game::deal(42);
+    let mut bytes = URL_SAFE_NO_PAD
+        .decode(game.encode().split_once(':').unwrap().1)
+        .unwrap();
+    let length = bytes.len();
+    bytes[length - 1] = bytes[length - 2];
+    assert!(Game::decode(&format!("v1:{}", URL_SAFE_NO_PAD.encode(&bytes))).is_err());
+    bytes.truncate(length - 4);
+    assert!(Game::decode(&format!("v1:{}", URL_SAFE_NO_PAD.encode(&bytes))).is_err());
+}
+
+#[test]
+fn teaching_omits_only_redundant_king_column_relocations() {
+    for cards in [&[12][..], &[12, 24, 10][..]] {
+        let game = fixture(&[(cards, 0)], &[], [0; 4]);
+        let command = Command::Move {
+            from: source(0, 0),
+            to: Destination::Tableau(1),
+        };
+        assert!(game.legal_moves().contains(&command));
+        assert!(!game.suggested_moves().contains(&command));
+        game.updated(command).unwrap().validate().unwrap();
+        assert!(game.suggested_moves().contains(&Command::Draw));
+    }
+
+    let game = fixture(&[(&[0, 25, 11], 1)], &[], [0; 4]);
+    assert!(game.suggested_moves().contains(&Command::Move {
+        from: source(0, 1),
+        to: Destination::Tableau(1)
+    }));
+    let game = fixture(&[], &[12], [0; 4]);
+    assert!(game.suggested_moves().contains(&Command::Move {
+        from: Source::Waste,
+        to: Destination::Tableau(0)
+    }));
+    let game = fixture(&[], &[], [13, 0, 0, 0]);
+    assert!(game.suggested_moves().contains(&Command::Move {
+        from: Source::Foundation(0),
+        to: Destination::Tableau(0)
+    }));
+}
+
+#[test]
+fn teaching_keeps_aces_on_foundations_without_banning_the_move() {
+    for suit in 0..4 {
+        let target = if Suit::ALL[suit].is_red() { 1 } else { 14 };
+        let mut foundations = [0; 4];
+        foundations[suit] = 1;
+        let game = fixture(&[(&[target], 0)], &[], foundations);
+        let command = Command::Move {
+            from: Source::Foundation(suit),
+            to: Destination::Tableau(0),
+        };
+        assert!(game.legal_moves().contains(&command));
+        assert!(!game.suggested_moves().contains(&command));
+        game.updated(command).unwrap().validate().unwrap();
+    }
+    let game = fixture(&[(&[15], 0)], &[], [2, 0, 0, 0]);
+    assert!(game.suggested_moves().contains(&Command::Move {
+        from: Source::Foundation(0),
+        to: Destination::Tableau(0)
+    }));
+}
+
+#[test]
+fn undo_restores_only_the_last_move_and_rejected_moves_preserve_it() {
+    let mut engine = Engine::new(Game::deal(19));
+    engine.execute(Command::Draw).unwrap();
+    let after_first = engine.game().clone();
+    engine.execute(Command::Draw).unwrap();
+    assert!(
+        engine
+            .execute(Command::Move {
+                from: source(99, 0),
+                to: Destination::Tableau(0)
+            })
+            .is_err()
+    );
+    assert!(engine.undo());
+    assert_eq!(engine.game(), &after_first);
+    assert!(!engine.can_undo());
+    assert!(!engine.undo());
+    assert_eq!(engine.game(), &after_first);
+    engine.execute(Command::Draw).unwrap();
+    assert!(engine.can_undo());
+}
+
+#[test]
+fn legal_moves_include_sequences_foundations_and_stock_without_changing_state() {
+    let game = fixture(&[(&[6, 18, 4], 1), (&[45], 0)], &[13], [0; 4]);
+    let previous = game.clone();
+    let moves = game.legal_moves();
+    assert!(moves.contains(&Command::Move {
+        from: source(0, 1),
+        to: Destination::Tableau(1)
+    }));
+    assert!(moves.contains(&Command::Move {
+        from: Source::Waste,
+        to: Destination::Foundation(1)
+    }));
+    assert!(moves.contains(&Command::Draw));
+    for &command in &moves {
+        game.updated(command).unwrap().validate().unwrap();
+    }
+    assert_eq!(game, previous);
+    assert!(
+        !fixture(&[], &[], [13; 4])
+            .legal_moves()
+            .contains(&Command::Draw)
+    );
+}
+
+#[test]
 fn draw_three_deals_in_order_recycles_and_undoes_as_one_action() {
     let game = Game::deal(17);
-    assert_eq!(game.draw_mode(), DrawMode::Three);
     let mut engine = Engine::new(game.clone());
     engine.execute(Command::Draw).unwrap();
     assert_eq!(engine.game().stock_len(), 21);
@@ -61,7 +234,6 @@ fn draw_three_deals_in_order_recycles_and_undoes_as_one_action() {
 #[test]
 fn draw_three_handles_short_final_packets_and_exposes_the_previous_waste_card() {
     let mut game = fixture(&[], &[], [0; 4]);
-    game.draw_mode = DrawMode::Three;
     game.waste = game.stock.drain(..50).collect();
     let expected = [game.stock[1], game.stock[0]];
     game.apply(Command::Draw).unwrap();
@@ -70,7 +242,6 @@ fn draw_three_handles_short_final_packets_and_exposes_the_previous_waste_card() 
     game.validate().unwrap();
 
     let mut game = fixture(&[], &[12, 27, 0], [0; 4]);
-    game.draw_mode = DrawMode::Three;
     game.apply(Command::Move {
         from: Source::Waste,
         to: Destination::Foundation(0),
@@ -82,26 +253,17 @@ fn draw_three_handles_short_final_packets_and_exposes_the_previous_waste_card() 
 }
 
 #[test]
-fn urls_preserve_both_modes_and_legacy_links_keep_draw_one_rules() {
-    for mode in [DrawMode::One, DrawMode::Three] {
-        let game = Game::deal_with_mode(42, mode);
-        assert!(game.encode().starts_with("v2:"));
-        assert_eq!(Game::decode(&game.encode()), Ok(game));
-    }
-    let legacy = "v1:AAAAABgAAQACAQMCBAMFBAYFBwYZLSorKAMyLCMnAA8aChgcBSYbDhUdCwwvMBACJB8xExYeBykIFAYSCREzLiEiASANJQQX";
-    let mut game = Game::decode(legacy).unwrap();
-    assert_eq!(game.draw_mode(), DrawMode::One);
-    game.apply(Command::Draw).unwrap();
-    assert_eq!(game.stock_len(), 23);
-    assert_eq!(game.waste().len(), 1);
+fn urls_restore_draw_three_and_reject_other_rules() {
+    let game = Game::deal(42);
+    assert!(game.encode().starts_with("v1:"));
     assert_eq!(Game::decode(&game.encode()), Ok(game));
-
+    assert_eq!(Game::decode("v2:AAAA"), Err(StateError::UnsupportedVersion));
     let encoded = Game::deal(42).encode();
     let mut bytes = URL_SAFE_NO_PAD.decode(&encoded[3..]).unwrap();
-    for invalid in [0, 2, 4, 255] {
+    for invalid in [0, 1, 2, 4, 255] {
         bytes[0] = invalid;
         assert_eq!(
-            Game::decode(&format!("v2:{}", URL_SAFE_NO_PAD.encode(&bytes))),
+            Game::decode(&format!("v1:{}", URL_SAFE_NO_PAD.encode(&bytes))),
             Err(StateError::InvalidState)
         );
     }
@@ -118,7 +280,7 @@ fn deals_have_the_standard_layout_and_complete_inventory() {
             assert_eq!(pile.hidden(), column);
         }
         assert_eq!(Game::decode(&game.encode()).unwrap(), game);
-        assert_eq!(game.encode().len(), 101);
+        assert_eq!(game.encode().len(), 106);
     }
     assert_eq!(Game::deal(42), Game::deal(42));
     assert_ne!(Game::deal(42), Game::deal(43));
@@ -126,10 +288,10 @@ fn deals_have_the_standard_layout_and_complete_inventory() {
 
 #[test]
 fn recycling_restores_stock_order_and_undo_restores_the_previous_state() {
-    let game = Game::deal_with_mode(17, DrawMode::One);
+    let game = Game::deal(17);
     let stock = game.stock.clone();
     let mut engine = Engine::new(game.clone());
-    for _ in 0..24 {
+    for _ in 0..8 {
         engine.execute(Command::Draw).unwrap();
     }
     assert_eq!(
@@ -160,7 +322,7 @@ fn moving_a_sequence_reveals_the_next_card_and_preserves_order() {
 
 #[test]
 fn assessment_reports_specific_reasons_without_mutation() {
-    let game = fixture(&[(&[6], 0), (&[4], 0), (&[17], 0)], &[], [0; 4]);
+    let game = fixture(&[(&[6], 0), (&[4], 0), (&[17], 0)], &[], [0, 1, 0, 0]);
     let unchanged = game.clone();
     assert_eq!(
         game.assess_move(source(1, 0), Destination::Tableau(0)),
@@ -272,9 +434,9 @@ fn malformed_links_are_rejected_without_panicking() {
         assert!(Game::decode(input).is_err());
     }
     let game = Game::deal(8);
-    let original = URL_SAFE_NO_PAD.decode(&game.encode()[3..]).unwrap()[1..].to_vec();
+    let original = URL_SAFE_NO_PAD.decode(&game.encode()[3..]).unwrap();
     let encoded = |bytes: &[u8]| format!("v1:{}", URL_SAFE_NO_PAD.encode(bytes));
-    for (index, value) in [(0, 14), (4, 255), (7, 255), (20, 52), (20, original[21])] {
+    for (index, value) in [(1, 14), (5, 255), (8, 255), (21, 52), (21, original[22])] {
         let mut corrupt = original.clone();
         corrupt[index] = value;
         assert!(Game::decode(&encoded(&corrupt)).is_err(), "byte {index}");
@@ -319,7 +481,7 @@ fn legal_play_preserves_inventory_and_serialization() {
                 game = next;
             }
             game.validate().unwrap();
-            assert!(game.encode().len() <= 101);
+            assert!(game.encode().len() <= 106);
             assert_eq!(Game::decode(&game.encode()).unwrap(), game);
         }
     }
