@@ -1,22 +1,21 @@
 # Klondike architecture and URL format
 
 This implementation uses the [rich Rust application pattern](RUST_RICH_APP.md)
-with a small headless rules kernel and an immediate-mode `egui` interface. Simple
-cards use egui painting on the `wgpu` backend; a separate custom renderer adds no
-useful boundary for this game.
+with a small headless rules kernel and an immediate-mode `egui` interface.
+Cards use the reusable [composable graphics model](COMPOSABLE_GRAPHICS.md),
+rendered through egui on the `wgpu` backend.
 
 The web build enables only the WebGPU backend. It requires a WebGPU-capable
 browser, an available GPU adapter, and a secure context (HTTPS or localhost).
 WebGL fallback is excluded to reduce the deployed binary. Windows builds enable
 Direct3D 12 independently of the web backend selection.
 
-`cards.rs` paints traditional rank-specific pip layouts, shared across all suits.
-Lower pips and bottom corner indexes rotate by 180 degrees. The ace of spades
-has a larger central symbol; the other aces use a normal central pip. Court cards
-embed Dmitry Fomin's CC0 English-pattern SVGs. `egui_extras` supplies runtime SVG
-loading through resvg and tiny-skia, rendering and caching each image at its
-displayed pixel size. The same loader runs on desktop and web. Source and license
-details are retained in [the card assets](../apps/desktop/assets/cards/README.md).
+`cards.rs` maps game cards to documents from `playing-card-assets`. These contain
+ordered instances of shared backgrounds, suit symbols, rank glyphs, and distinct
+court illustrations. `graphics2d-egui` rasterizes SVG components with resvg and
+tiny-skia and caches textures at their displayed pixel size. The same renderer
+runs on desktop and web. Source components and their license statement are in
+[the shared asset crate](../Assets/CardComponents/README.md).
 
 ## State and update flow
 
@@ -98,6 +97,23 @@ Help starts enabled and Teach starts disabled.
 
 Legal-move enumeration belongs to the kernel. Presentation maps those commands
 to current card and pile rectangles, so layout and game rules stay separate.
+
+## Language settings
+
+The gear button at the right of the toolbar opens a modal language selector.
+Language names appear in their own language. Switching language updates toolbar
+labels, settings, rule tips, and game-link errors without changing the board or
+undo history. English is the default and the fallback for unknown language codes.
+
+`language.rs` keeps typed message keys and the bundled translation catalogs in
+the presentation crate. The kernel returns `MoveError` and `StateError` values;
+the interface maps these to localized messages. Claude Haiku supplied the ten
+non-English catalogs. Card artwork retains its English-pattern corner indexes.
+
+Web links retain the selected language in the `lang` query parameter, for example
+`?lang=fi#v1:<payload>`. Board updates preserve that parameter; the board encoding
+does not change. The native build retains the choice for the current session.
+Help and Teach remain independent session settings.
 
 ## Version 1 encoding
 

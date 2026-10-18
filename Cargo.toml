@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/core", "apps/desktop"]
+members = ["crates/core", "crates/graphics2d", "crates/graphics2d-egui", "Assets/CardComponents", "apps/desktop"]
 resolver = "2"
 
 [workspace.package]

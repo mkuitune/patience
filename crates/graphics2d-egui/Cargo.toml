@@ -1,0 +1,15 @@
+[package]
+name = "graphics2d-egui"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+graphics2d = { version = "0.1.0", path = "../graphics2d" }
+egui = { version = "=0.33.3", default-features = false }
+resvg = { version = "0.45.1", default-features = false }
+thiserror = "2"
+
+[dev-dependencies]
+playing-card-assets = { path = "../../Assets/CardComponents" }

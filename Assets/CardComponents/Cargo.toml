@@ -1,0 +1,11 @@
+[package]
+name = "playing-card-assets"
+description = "Shared SVG components and ordered playing-card compositions"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license = "CC0-1.0"
+include = ["src/**", "*.svg", "readme.txt", "README.md"]
+
+[dependencies]
+graphics2d = { version = "0.1.0", path = "../../crates/graphics2d" }

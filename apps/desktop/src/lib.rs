@@ -1,5 +1,6 @@
 mod app;
 mod cards;
+mod language;
 mod platform;
 
 pub use app::PatienceApp;

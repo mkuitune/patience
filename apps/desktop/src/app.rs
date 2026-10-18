@@ -1,11 +1,13 @@
-use crate::cards::paint_card;
+use crate::cards::Cards;
+use crate::language::{self, Key, LANGUAGES, Language};
 use crate::platform::Platform;
 use eframe::egui::{self, Align2, Color32, FontId, Rect, Sense, Stroke, StrokeKind};
-use patience_core::{Card, Command, Destination, Engine, Game, Source};
+use patience_core::{Card, Command, Destination, Engine, Game, Source, StateError};
 
 const TABLE: Color32 = Color32::from_rgb(20, 91, 61);
 
 pub struct PatienceApp {
+    cards: Cards,
     engine: Engine,
     waste_fan_count: usize,
     undo_waste_fan_count: Option<usize>,
@@ -17,7 +19,9 @@ pub struct PatienceApp {
     rejected: Option<RejectedDrop>,
     message_is_rule: bool,
     message: String,
-    load_error: Option<String>,
+    load_error: Option<StateError>,
+    language: &'static Language,
+    settings_open: bool,
     platform: Platform,
 }
 
@@ -75,7 +79,6 @@ enum Click {
 
 impl PatienceApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        egui_extras::install_image_loaders(&cc.egui_ctx);
         cc.egui_ctx.set_visuals(egui::Visuals::dark());
         cc.egui_ctx.style_mut(|style| {
             style.spacing.button_padding = egui::vec2(14.0, 9.0);
@@ -87,6 +90,7 @@ impl PatienceApp {
                 .insert(egui::TextStyle::Button, FontId::proportional(16.0));
         });
         let platform = Platform::new(&cc.egui_ctx);
+        let language = language::by_code(&platform.language().unwrap_or_default());
         let fragment = platform.fragment();
         let restored = if fragment.is_empty() {
             Ok(Game::deal(rand::random()))
@@ -95,9 +99,10 @@ impl PatienceApp {
         };
         let (game, load_error) = match restored {
             Ok(game) => (game, None),
-            Err(error) => (Game::deal(rand::random()), Some(error.to_string())),
+            Err(error) => (Game::deal(rand::random()), Some(error)),
         };
         let mut app = Self {
+            cards: Cards::new(),
             engine: Engine::new(game),
             waste_fan_count: 0,
             undo_waste_fan_count: None,
@@ -110,6 +115,8 @@ impl PatienceApp {
             message_is_rule: false,
             message: String::new(),
             load_error,
+            language,
+            settings_open: false,
             platform,
         };
         if app.load_error.is_none() {
@@ -121,7 +128,7 @@ impl PatienceApp {
     fn save_url(&mut self) {
         if let Err(error) = self.platform.save(&self.engine.game().encode()) {
             self.message_is_rule = false;
-            self.message = format!("Could not update the bookmark URL: {error}");
+            self.message = format!("{}: {error}", self.language.text(Key::SaveError));
         }
     }
 
@@ -163,7 +170,7 @@ impl PatienceApp {
             }
             Err(error) => {
                 self.message_is_rule = true;
-                self.message = error.to_string();
+                self.message = self.language.move_error(error).into();
                 if let Command::Move { to, .. } = command {
                     self.rejected = Some(RejectedDrop {
                         destination: to,
@@ -212,7 +219,7 @@ impl PatienceApp {
                         self.execute(Command::Move { from: source, to });
                     } else {
                         self.message_is_rule = true;
-                        self.message = "That card cannot move to a foundation yet.".into();
+                        self.message = self.language.text(Key::CannotHome).into();
                     }
                     return;
                 }
@@ -263,11 +270,11 @@ impl PatienceApp {
         let stock = at(0, 0.0);
         slot(ui, stock, if game.stock_len() == 0 { "↻" } else { "" });
         if game.stock_len() > 0 {
-            paint_card(ui, stock, None, false);
+            self.cards.paint(ui, stock, None, false);
         }
         let stock_response = ui.interact(stock, ui.id().with("stock"), Sense::click());
         let stock_response = if self.help {
-            stock_response.on_hover_text("Draw three cards; recycle waste when empty.")
+            stock_response.on_hover_text(self.language.text(Key::Draw))
         } else {
             stock_response
         };
@@ -456,7 +463,7 @@ impl PatienceApp {
             .or_else(|| self.returning.as_ref().map(|animation| animation.source));
         for (rect, value, selected, source) in cards_to_paint {
             if !matches!((source, moving), (Some(card), Some(moving)) if belongs_to(card, moving)) {
-                paint_card(ui, rect, value, selected);
+                self.cards.paint(ui, rect, value, selected);
             }
         }
         if let (Some(animation), Some(home)) = (&self.returning, return_home) {
@@ -469,7 +476,7 @@ impl PatienceApp {
                     position + egui::vec2(0.0, index as f32 * front_step),
                     egui::vec2(w, h),
                 );
-                paint_card(ui, rect, Some(value), false);
+                self.cards.paint(ui, rect, Some(value), false);
             }
             ui.ctx().request_repaint();
         }
@@ -534,7 +541,7 @@ impl PatienceApp {
                     .show(ui.ctx(), |ui| {
                         egui::Frame::popup(ui.style()).show(ui, |ui| {
                             ui.set_max_width(280.0);
-                            ui.colored_label(color, reason.to_string());
+                            ui.colored_label(color, self.language.move_error(reason));
                         });
                     });
             }
@@ -581,7 +588,7 @@ impl PatienceApp {
                         position - drag.offset + egui::vec2(0.0, index as f32 * front_step),
                         egui::vec2(w, h),
                     );
-                    paint_card(ui, ghost, Some(value), true);
+                    self.cards.paint(ui, ghost, Some(value), true);
                 }
             }
             let released = sources
@@ -623,6 +630,7 @@ impl PatienceApp {
 
 impl eframe::App for PatienceApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.cards.begin_frame();
         if let Some(fragment) = self.platform.changed_fragment() {
             match Game::decode(&fragment) {
                 Ok(game) => {
@@ -639,7 +647,7 @@ impl eframe::App for PatienceApp {
                 Err(error) => {
                     self.rejected = None;
                     self.returning = None;
-                    self.load_error = Some(error.to_string());
+                    self.load_error = Some(error);
                 }
             }
         }
@@ -653,81 +661,182 @@ impl eframe::App for PatienceApp {
             self.returning = None;
             self.selected = None;
         }
-        if self.load_error.is_none()
+        if !self.settings_open
+            && self.load_error.is_none()
             && ctx.input_mut(|input| input.consume_key(egui::Modifiers::COMMAND, egui::Key::Z))
         {
             self.undo();
         }
         egui::TopBottomPanel::top("toolbar").show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                if ui.button("New game").clicked() {
-                    self.engine = Engine::new(Game::deal(rand::random()));
-                    self.waste_fan_count = 0;
-                    self.undo_waste_fan_count = None;
-                    self.rejected = None;
-                    self.selected = None;
-                    self.drag = None;
-                    self.returning = None;
-                    self.load_error = None;
-                    self.message.clear();
-                    self.save_url();
+            let row_height = (ui.text_style_height(&egui::TextStyle::Button)
+                + 2.0 * ui.spacing().button_padding.y)
+                .max(36.0);
+            ui.spacing_mut().interact_size.y = row_height;
+            ui.allocate_ui_with_layout(
+                egui::vec2(ui.available_width(), row_height),
+                egui::Layout::right_to_left(egui::Align::Center),
+                |ui| {
+                    let response = ui
+                        .add(egui::Button::new("").min_size(egui::vec2(38.0, row_height)))
+                        .on_hover_text(self.language.text(Key::Settings));
+                    response.widget_info(|| {
+                        egui::WidgetInfo::labeled(
+                            egui::WidgetType::Button,
+                            true,
+                            self.language.text(Key::Settings),
+                        )
+                    });
+                    gear(
+                        ui.painter(),
+                        response.rect.center(),
+                        ui.visuals().text_color(),
+                    );
+                    if response.clicked() {
+                        self.settings_open = true;
+                        self.drag = None;
+                        self.selected = None;
+                    }
+                    ui.with_layout(
+                        egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true),
+                        |ui| {
+                            if ui.button(self.language.text(Key::NewGame)).clicked() {
+                                self.engine = Engine::new(Game::deal(rand::random()));
+                                self.waste_fan_count = 0;
+                                self.undo_waste_fan_count = None;
+                                self.rejected = None;
+                                self.selected = None;
+                                self.drag = None;
+                                self.returning = None;
+                                self.load_error = None;
+                                self.message.clear();
+                                self.save_url();
+                            }
+                            let undo = ui.add_enabled(
+                                self.load_error.is_none() && self.engine.can_undo(),
+                                egui::Button::new("").min_size(egui::vec2(38.0, row_height)),
+                            );
+                            let ink = if undo.enabled() {
+                                ui.visuals().text_color()
+                            } else {
+                                ui.visuals().weak_text_color()
+                            };
+                            let center = undo.rect.center();
+                            ui.painter().line_segment(
+                                [center + egui::vec2(8.0, 0.0), center - egui::vec2(8.0, 0.0)],
+                                Stroke::new(1.6, ink),
+                            );
+                            ui.painter().add(egui::Shape::line(
+                                vec![
+                                    center + egui::vec2(-2.0, -6.0),
+                                    center + egui::vec2(-8.0, 0.0),
+                                    center + egui::vec2(-2.0, 6.0),
+                                ],
+                                Stroke::new(1.6, ink),
+                            ));
+                            undo.widget_info(|| {
+                                egui::WidgetInfo::labeled(
+                                    egui::WidgetType::Button,
+                                    self.engine.can_undo(),
+                                    self.language.text(Key::Undo),
+                                )
+                            });
+                            let undo = if self.help {
+                                undo.on_hover_text(self.language.text(Key::Undo))
+                            } else {
+                                undo
+                            };
+                            if undo.clicked() {
+                                self.undo();
+                            }
+                            if ui
+                                .checkbox(&mut self.help, self.language.text(Key::Help))
+                                .changed()
+                                && self.message_is_rule
+                            {
+                                self.message.clear();
+                            }
+                            ui.checkbox(&mut self.teach, self.language.text(Key::Teach));
+                            if self.engine.game().is_won() {
+                                ui.strong(self.language.text(Key::Won));
+                            }
+                        },
+                    );
+                },
+            );
+        });
+        egui::CentralPanel::default()
+            .frame(egui::Frame::new().fill(TABLE).inner_margin(12.0))
+            .show(ctx, |ui| {
+                if !self.message.is_empty() && !self.message_is_rule {
+                    ui.colored_label(Color32::WHITE, &self.message);
                 }
-                let undo = ui.add_enabled(
-                    self.load_error.is_none() && self.engine.can_undo(),
-                    egui::Button::new("").min_size(egui::vec2(38.0, 36.0)),
-                );
-                let ink = if undo.enabled() {
-                    ui.visuals().text_color()
+                if let Some(error) = &self.cards.error {
+                    ui.colored_label(Color32::WHITE, error);
+                }
+                if let Some(error) = &self.load_error {
+                    ui.colored_label(Color32::WHITE, self.language.state_error(*error));
+                    ui.label(self.language.text(Key::InvalidLinkHelp));
                 } else {
-                    ui.visuals().weak_text_color()
-                };
-                let center = undo.rect.center();
-                ui.painter().line_segment(
-                    [center + egui::vec2(8.0, 0.0), center - egui::vec2(8.0, 0.0)],
-                    Stroke::new(1.6, ink),
-                );
-                ui.painter().add(egui::Shape::line(
-                    vec![
-                        center + egui::vec2(-2.0, -6.0),
-                        center + egui::vec2(-8.0, 0.0),
-                        center + egui::vec2(-2.0, 6.0),
-                    ],
-                    Stroke::new(1.6, ink),
-                ));
-                undo.widget_info(|| {
-                    egui::WidgetInfo::labeled(
-                        egui::WidgetType::Button,
-                        self.engine.can_undo(),
-                        "Undo last move",
-                    )
-                });
-                let undo = if self.help {
-                    undo.on_hover_text("Undo last move")
-                } else {
-                    undo
-                };
-                if undo.clicked() {
-                    self.undo();
-                }
-                if ui.checkbox(&mut self.help, "Help").changed() && self.message_is_rule {
-                    self.message.clear();
-                }
-                ui.checkbox(&mut self.teach, "Teach");
-                if self.engine.game().is_won() {
-                    ui.strong("You won!");
+                    egui::ScrollArea::both()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| self.board(ui));
                 }
             });
-        });
-        egui::CentralPanel::default().frame(egui::Frame::new().fill(TABLE).inner_margin(12.0)).show(ctx, |ui| {
-            if !self.message.is_empty() && !self.message_is_rule {
-                ui.colored_label(Color32::WHITE, &self.message);
+        if self.settings_open {
+            let modal = egui::Modal::new(egui::Id::new("settings")).show(ctx, |ui| {
+                ui.set_width(260.0_f32.min(ui.ctx().content_rect().width() - 48.0));
+                ui.heading(self.language.text(Key::Settings));
+                ui.separator();
+                ui.label(self.language.text(Key::Language));
+                egui::ComboBox::from_id_salt("language")
+                    .selected_text(self.language.name)
+                    .show_ui(ui, |ui| {
+                        for language in LANGUAGES {
+                            if ui
+                                .selectable_label(
+                                    self.language.code == language.code,
+                                    language.name,
+                                )
+                                .clicked()
+                            {
+                                self.language = language;
+                                if self.message_is_rule {
+                                    self.message.clear();
+                                }
+                                if let Err(error) = self.platform.save_language(language.code) {
+                                    self.message_is_rule = false;
+                                    self.message =
+                                        format!("{}: {error}", language.text(Key::SaveError));
+                                }
+                            }
+                        }
+                    });
+                ui.add_space(12.0);
+                if ui.button(self.language.text(Key::Close)).clicked() {
+                    ui.close();
+                }
+            });
+            if modal.should_close() {
+                self.settings_open = false;
             }
-            if let Some(error) = &self.load_error {
-                ui.colored_label(Color32::WHITE, error);
-                ui.label("The link has been left unchanged. Open a valid game link or choose New game.");
-            } else { egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| self.board(ui)); }
-        });
+        }
     }
+}
+
+fn gear(painter: &egui::Painter, center: egui::Pos2, ink: Color32) {
+    let points = (0..64)
+        .map(|index| {
+            let angle = index as f32 * std::f32::consts::TAU / 64.0;
+            let radius = if matches!(index % 8, 2..=5) {
+                11.0
+            } else {
+                8.3
+            };
+            center + egui::vec2(angle.cos(), angle.sin()) * radius
+        })
+        .collect();
+    painter.add(egui::Shape::closed_line(points, Stroke::new(1.6, ink)));
+    painter.circle_stroke(center, 3.5, Stroke::new(1.6, ink));
 }
 
 fn slot(ui: &egui::Ui, rect: Rect, label: &str) {
@@ -822,8 +931,8 @@ mod tests {
     use super::*;
 
     fn app(game: Game, ctx: &egui::Context) -> PatienceApp {
-        egui_extras::install_image_loaders(ctx);
         PatienceApp {
+            cards: Cards::new(),
             engine: Engine::new(game),
             waste_fan_count: 0,
             undo_waste_fan_count: None,
@@ -836,6 +945,8 @@ mod tests {
             message_is_rule: false,
             message: String::new(),
             load_error: None,
+            language: language::by_code("en"),
+            settings_open: false,
             platform: Platform::new(ctx),
         }
     }

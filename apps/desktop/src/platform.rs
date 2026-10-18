@@ -15,6 +15,12 @@ impl Platform {
     pub fn save(&mut self, _: &str) -> Result<(), String> {
         Ok(())
     }
+    pub fn language(&self) -> Option<String> {
+        None
+    }
+    pub fn save_language(&self, _: &str) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -49,6 +55,26 @@ mod browser {
             web_sys::window()
                 .and_then(|window| window.location().hash().ok())
                 .unwrap_or_default()
+        }
+
+        pub fn language(&self) -> Option<String> {
+            let href = web_sys::window()?.location().href().ok()?;
+            web_sys::Url::new(&href).ok()?.search_params().get("lang")
+        }
+
+        pub fn save_language(&self, code: &str) -> Result<(), String> {
+            let window = web_sys::window().ok_or("browser window is unavailable")?;
+            let href = window
+                .location()
+                .href()
+                .map_err(|error| format!("{error:?}"))?;
+            let url = web_sys::Url::new(&href).map_err(|error| format!("{error:?}"))?;
+            url.search_params().set("lang", code);
+            window
+                .history()
+                .map_err(|error| format!("{error:?}"))?
+                .replace_state_with_url(&JsValue::NULL, "", Some(&url.href()))
+                .map_err(|error| format!("{error:?}"))
         }
 
         pub fn changed_fragment(&mut self) -> Option<String> {

@@ -54,6 +54,12 @@ optional dependency on day one.
 
 ### Vector graphics
 
+For reusable programmable graphics, use the [composable 2D graphics
+model](COMPOSABLE_GRAPHICS.md): ordered asset instances in document space, with
+independent views. `graphics2d` owns backend-independent data;
+`graphics2d-egui` draws it; asset crates embed shared artwork and compositions.
+The card library in `Assets/CardComponents` is the first consumer.
+
 Treat SVG as a runtime asset format. For SVG assets displayed through egui, enable
 `egui_extras`'s `svg` feature and install its image loaders when creating the GUI
 context. This uses resvg to interpret SVG and tiny-skia to render on the CPU.
