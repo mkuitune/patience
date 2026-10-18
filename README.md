@@ -79,7 +79,12 @@ supported bookmarks.
 cargo test --workspace
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
+cargo run -p playing-card-assets --bin check-card-assets
 ```
 
 See [Klondike architecture and URL format](doc/KLONDIKE.md) and the
 [rich Rust application guide](doc/RUST_RICH_APP.md).
+Card layouts and styles are schema-validated JSON; see the
+[composable graphics guide](doc/COMPOSABLE_GRAPHICS.md) for editing and reuse.
+Protobuf types are generated during builds using a bundled compiler; set `PROTOC`
+only when selecting a different compiler explicitly.

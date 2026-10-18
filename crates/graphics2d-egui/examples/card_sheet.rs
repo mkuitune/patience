@@ -1,6 +1,6 @@
 //! Exports every composition for visual review, without a window or GPU.
 
-use graphics2d::{Document, Paint};
+use graphics2d::{Paint, Resources, Vec2, View, WidthUnit};
 use playing_card_assets::{self as deck, Suit};
 use resvg::{tiny_skia, usvg};
 
@@ -8,9 +8,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let destination = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "target/card-sheet.png".into());
-    let trees: Vec<_> = deck::ASSETS
+    let deck = deck::Deck::bundled()?;
+    let resources = &deck.context.resources;
+    let trees: Vec<_> = resources
+        .assets
         .iter()
-        .map(|asset| usvg::Tree::from_str(asset.svg, &usvg::Options::default()))
+        .map(|asset| usvg::Tree::from_str(&asset.svg, &usvg::Options::default()))
         .collect::<Result<_, _>>()?;
     let mut sheet = tiny_skia::Pixmap::new(1450, 800).ok_or("sheet allocation failed")?;
     sheet.fill(tiny_skia::Color::from_rgba8(20, 91, 61, 255));
@@ -19,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .enumerate()
     {
         for rank in 1..=13 {
-            let card = rasterize(&deck::face(rank, suit).unwrap(), &trees)?;
+            let card = rasterize(deck.face_view(rank, suit).unwrap(), &trees, resources)?;
             sheet.draw_pixmap(
                 8 + (rank as i32 - 1) * 110,
                 8 + row as i32 * 156,
@@ -30,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
     }
-    let back = rasterize(&deck::back(), &trees)?;
+    let back = rasterize(deck.back_view(), &trees, resources)?;
     sheet.draw_pixmap(
         8,
         632,
@@ -45,21 +48,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn rasterize(
-    document: &Document,
+    view: View<'_>,
     trees: &[usvg::Tree],
+    resources: &Resources,
 ) -> Result<tiny_skia::Pixmap, Box<dyn std::error::Error>> {
     let mut card = tiny_skia::Pixmap::new(104, 146).ok_or("card allocation failed")?;
-    for instance in &document.instances {
+    let scale = (104.0 / view.bounds.size().x).min(146.0 / view.bounds.size().y);
+    let offset = Vec2::new(52.0, 73.0) - view.bounds.center() * scale;
+    for instance in &view.document.instances {
         let mut layer = tiny_skia::Pixmap::new(104, 146).ok_or("layer allocation failed")?;
         let matrix = instance.placement.matrix();
-        let scale = 104.0 / 750.0;
         let transform = tiny_skia::Transform::from_row(
             matrix.x_axis.x * scale,
             matrix.x_axis.y * scale,
             matrix.y_axis.x * scale,
             matrix.y_axis.y * scale,
-            matrix.z_axis.x * scale,
-            matrix.z_axis.y * scale,
+            matrix.z_axis.x * scale + offset.x,
+            matrix.z_axis.y * scale + offset.y,
         );
         resvg::render(&trees[instance.asset.0], transform, &mut layer.as_mut());
         if let Paint::Solid([r, g, b, a]) = instance.paint {
@@ -70,6 +75,39 @@ fn rasterize(
                 pixel[2] = ((u16::from(b) * alpha + 127) / 255) as u8;
                 pixel[3] = alpha as u8;
             }
+        }
+        if let Some(id) = instance.style {
+            let style = resources.styles[id.0];
+            let source_width = match style.unit {
+                WidthUnit::Source => style.width,
+                WidthUnit::LogicalPixels => {
+                    style.width / (scale * matrix.x_axis.truncate().length())
+                }
+            };
+            let tree = &trees[instance.asset.0];
+            let outline = graphics2d_egui::rasterize_outline(
+                tree,
+                (tree.size().width() * matrix.x_axis.truncate().length() * scale).ceil() as u32,
+                (tree.size().height() * matrix.y_axis.truncate().length() * scale).ceil() as u32,
+                style.color,
+                source_width,
+            )?;
+            let outline_transform = tiny_skia::Transform::from_row(
+                transform.sx * tree.size().width() / outline.width() as f32,
+                transform.ky * tree.size().width() / outline.width() as f32,
+                transform.kx * tree.size().height() / outline.height() as f32,
+                transform.sy * tree.size().height() / outline.height() as f32,
+                transform.tx,
+                transform.ty,
+            );
+            layer.draw_pixmap(
+                0,
+                0,
+                outline.as_ref(),
+                &tiny_skia::PixmapPaint::default(),
+                outline_transform,
+                None,
+            );
         }
         card.draw_pixmap(
             0,

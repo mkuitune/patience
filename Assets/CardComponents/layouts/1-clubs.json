@@ -1,0 +1,136 @@
+{
+  "uuid": "3e8502c9-a5f8-401d-a421-fd7ec2f89e04",
+  "view": {
+    "min": {
+      "x": 0,
+      "y": 0
+    },
+    "max": {
+      "x": 750,
+      "y": 1050
+    }
+  },
+  "instances": [
+    {
+      "assetUuid": "6ffac843-2f2d-4fb4-a785-c5c08c56763b",
+      "simple": {
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "xDirection": {
+          "x": 1,
+          "y": 0
+        },
+        "scale": 1,
+        "handedness": 1
+      },
+      "styleUuid": "bab8b83f-f4a9-4781-833c-d8906a1be89b"
+    },
+    {
+      "assetUuid": "1975dc5a-e394-4557-8b2a-8c9714134ab5",
+      "simple": {
+        "position": {
+          "x": 24.5,
+          "y": 22
+        },
+        "xDirection": {
+          "x": 1,
+          "y": 0
+        },
+        "scale": 1,
+        "handedness": 1
+      },
+      "color": {
+        "r": 0,
+        "g": 0,
+        "b": 0,
+        "a": 255
+      }
+    },
+    {
+      "assetUuid": "b660e772-060e-4d4d-b677-8763bdfbc273",
+      "simple": {
+        "position": {
+          "x": 25.333333333333336,
+          "y": 142
+        },
+        "xDirection": {
+          "x": 1,
+          "y": 0
+        },
+        "scale": 0.358974358974359,
+        "handedness": 1
+      },
+      "color": {
+        "r": 0,
+        "g": 0,
+        "b": 0,
+        "a": 255
+      }
+    },
+    {
+      "assetUuid": "1975dc5a-e394-4557-8b2a-8c9714134ab5",
+      "simple": {
+        "position": {
+          "x": 725.5,
+          "y": 1028
+        },
+        "xDirection": {
+          "x": -1,
+          "y": 0
+        },
+        "scale": 1,
+        "handedness": 1
+      },
+      "color": {
+        "r": 0,
+        "g": 0,
+        "b": 0,
+        "a": 255
+      }
+    },
+    {
+      "assetUuid": "b660e772-060e-4d4d-b677-8763bdfbc273",
+      "simple": {
+        "position": {
+          "x": 724.6666666666666,
+          "y": 908
+        },
+        "xDirection": {
+          "x": -1,
+          "y": 0
+        },
+        "scale": 0.358974358974359,
+        "handedness": 1
+      },
+      "color": {
+        "r": 0,
+        "g": 0,
+        "b": 0,
+        "a": 255
+      }
+    },
+    {
+      "assetUuid": "b660e772-060e-4d4d-b677-8763bdfbc273",
+      "simple": {
+        "position": {
+          "x": 284,
+          "y": 427.5
+        },
+        "xDirection": {
+          "x": 1,
+          "y": 0
+        },
+        "scale": 1,
+        "handedness": 1
+      },
+      "color": {
+        "r": 0,
+        "g": 0,
+        "b": 0,
+        "a": 255
+      }
+    }
+  ]
+}

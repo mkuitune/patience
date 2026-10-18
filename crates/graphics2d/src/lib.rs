@@ -1,7 +1,6 @@
 //! Ordered instances in document space, independent of any rendering backend.
 
 pub use glam::{Mat3, Vec2};
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, Error, PartialEq, Eq)]
@@ -14,8 +13,7 @@ pub enum GeometryError {
     InvalidBounds,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(into = "i8", try_from = "i8")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Handedness {
     Positive,
     Negative,
@@ -41,17 +39,8 @@ impl TryFrom<i8> for Handedness {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(try_from = "StoredPlacement", into = "StoredPlacement")]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SimplePlacement {
-    position: Vec2,
-    x_direction: Vec2,
-    scale: f32,
-    handedness: Handedness,
-}
-
-#[derive(Serialize, Deserialize)]
-struct StoredPlacement {
     position: Vec2,
     x_direction: Vec2,
     scale: f32,
@@ -107,30 +96,7 @@ impl SimplePlacement {
     }
 }
 
-impl TryFrom<StoredPlacement> for SimplePlacement {
-    type Error = GeometryError;
-    fn try_from(value: StoredPlacement) -> Result<Self, Self::Error> {
-        Self::new(
-            value.position,
-            value.x_direction,
-            value.scale,
-            value.handedness,
-        )
-    }
-}
-
-impl From<SimplePlacement> for StoredPlacement {
-    fn from(value: SimplePlacement) -> Self {
-        Self {
-            position: value.position,
-            x_direction: value.x_direction,
-            scale: value.scale,
-            handedness: value.handedness,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Placement {
     Simple(SimplePlacement),
 }
@@ -143,8 +109,7 @@ impl Placement {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(try_from = "[Vec2; 2]", into = "[Vec2; 2]")]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Bounds {
     min: Vec2,
     max: Vec2,
@@ -202,29 +167,30 @@ impl From<Bounds> for [Vec2; 2] {
 }
 
 pub struct SvgAsset {
-    pub name: &'static str,
-    pub svg: &'static str,
+    pub name: String,
+    pub svg: String,
     pub bounds: Bounds,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct AssetId(pub usize);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Paint {
     Original,
     /// Uses vector coverage as a mask for a straight-alpha RGBA color.
     Solid([u8; 4]),
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Instance {
     pub asset: AssetId,
     pub placement: Placement,
     pub paint: Paint,
+    pub style: Option<StyleId>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Document {
     /// First instance is painted first. Later instances paint over earlier ones.
     pub instances: Vec<Instance>,
@@ -277,33 +243,36 @@ mod tests {
     }
 
     #[test]
-    fn storage_preserves_placements_and_rejects_invalid_geometry() {
-        let placement =
-            SimplePlacement::new(Vec2::new(12.0, 23.0), -Vec2::X, 0.5, Handedness::Negative)
-                .unwrap();
-        let document = Document {
-            instances: vec![Instance {
-                asset: AssetId(3),
-                placement: Placement::Simple(placement),
-                paint: Paint::Solid([20, 30, 40, 255]),
-            }],
-        };
-        let stored = serde_json::to_string(&document).unwrap();
-        assert_eq!(serde_json::from_str::<Document>(&stored).unwrap(), document);
-        for (field, value) in [
-            ("x_direction", serde_json::json!([0.0, 0.0])),
-            ("scale", serde_json::json!(0.0)),
-            ("handedness", serde_json::json!(0)),
-        ] {
-            let mut bad: serde_json::Value = serde_json::from_str(&stored).unwrap();
-            bad["instances"][0]["placement"]["Simple"][field] = value;
-            assert!(serde_json::from_value::<Document>(bad).is_err());
-        }
+    fn constructors_reject_invalid_geometry() {
         assert!(SimplePlacement::new(Vec2::ZERO, Vec2::ZERO, 1.0, Handedness::Positive).is_err());
         assert!(
             SimplePlacement::new(Vec2::splat(f32::NAN), Vec2::X, 1.0, Handedness::Positive)
                 .is_err()
         );
+        assert!(SimplePlacement::new(Vec2::ZERO, Vec2::X, 0.0, Handedness::Positive).is_err());
         assert!(Bounds::new(Vec2::ZERO, Vec2::new(0.0, 2.0)).is_err());
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct StyleId(pub usize);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WidthUnit {
+    Source,
+    LogicalPixels,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct OutlineStyle {
+    pub color: [u8; 4],
+    pub width: f32,
+    pub unit: WidthUnit,
+}
+
+/// A renderer and its documents must use resources from the same application context.
+#[derive(Default)]
+pub struct Resources {
+    pub assets: Vec<SvgAsset>,
+    pub styles: Vec<OutlineStyle>,
 }

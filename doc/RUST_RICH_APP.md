@@ -26,6 +26,45 @@ responsibility; add an abstraction when concrete uses justify it.
 Production quality comes from correct behavior, deliberate failure handling,
 measured performance, and verified platform support.
 
+### Cargo-based builds
+
+Keep project builds self-contained within Cargo. Beyond Rust and the target's
+standard platform toolchain, a fresh checkout should build with ordinary Cargo
+commands. Use Cargo build dependencies and `build.rs` for code generation and
+required tools. Avoid manual installations, global environment changes, and
+pre-build commands outside Cargo whenever an established Cargo-integrated option
+exists. Document and justify any unavoidable exception.
+
+### Ecosystem resilience
+
+Choose dependencies partly by the likelihood that their ecosystem will detect
+and address security incidents and maintain compatibility with our language and
+target platforms. Use a roughly logarithmic adoption scale: a specialized
+component can be a sound choice without matching the largest projects in usage.
+
+| Class | Meaning | Selection rule |
+|---|---|---|
+| A | Broad adoption with substantial institutional support and many independent users | Prefer when suitable |
+| B | Specialized but established, with enough active users and maintainers to support continued security attention and compatibility | A normal, acceptable choice |
+| C | Limited adoption or insufficient evidence of continued ecosystem care | Investigate deeply before adopting; do not automatically reject |
+
+Rate the concrete implementation and integration we depend on. An A-class format
+does not make every library implementing it A. For example, assess Protobuf and
+a Rust ProtoJSON adapter separately. Ratings express evidence-based expectations,
+not security guarantees.
+
+Check substantial downstream users, maintenance history, maintainer continuity,
+security response, compatibility tests, and support for our actual targets.
+Downloads and stars are supporting signals, not counts of independent users.
+Direct dependency use by a high-profile A-class project establishes a B rating
+unless evidence shows the component is end-of-life or being deprecated. Check
+that the dependency is current; historical use alone does not establish continued
+ecosystem care. This rating does not replace verification on our target platforms.
+For C components, understand these points from the start, including unresolved
+issues and the cost of replacing the component or maintaining it ourselves.
+Record the evidence, uncertainties, and reason for adoption with the decision;
+reassess when maintenance or platform support changes materially.
+
 ## Default library stack
 
 | Responsibility | Choice | Use |
@@ -107,6 +146,28 @@ Automation  -> engine commands
 The engine and its state must build and run without `egui`, `eframe`, or `wgpu`.
 The renderer depends on scene types; scene types do not depend on the renderer.
 UI state may use GUI types, but durable state must not require them.
+
+### Persistent resource identity and runtime handles
+
+Identify persistent resources with UUIDs. Resolve UUID references once when
+loading an application context, using a UUID-to-typed-index map. Runtime assets,
+documents, and evaluated data reference compact integer handles and dense storage;
+do not use UUID strings or UUID lookups as the main reference mechanism during
+rendering and evaluation. This keeps large models from becoming collections of
+repeated GUID strings and hash lookups.
+
+Handles are specializations for one context's lifetime. Never persist handles or
+assume they identify the same resource in another context. Keep reverse
+index-to-UUID metadata for export. Reject duplicate definitions, missing references,
+and references to the wrong resource kind. Preserve UUIDs across edits and moves;
+assign new UUIDs to independent copies. Start with append-only or immutable storage;
+if slots are later reused, prevent stale handles from referring to new resources.
+
+Keep transport types separate from runtime types. For portable schema-defined
+resources, use Protobuf with generated types and its standard ProtoJSON mapping.
+Validate application constraints and resolve UUIDs at that boundary. The
+[composable graphics implementation](COMPOSABLE_GRAPHICS.md) uses Prost and pbjson
+for Rust; Serde remains the general-purpose choice for other formats.
 
 ## Starting layout
 
@@ -197,6 +258,13 @@ window and one GPU context for the default application.
 
 Start with callback integration. Take over application render scheduling only
 when a demonstrated requirement exceeds that integration.
+
+Express UI-sized strokes and hit tolerances in logical pixels (egui points).
+Physical pixels equal logical pixels multiplied by `pixels_per_point`, which
+accounts for host display scaling and browser page zoom. Do not apply that scaling
+twice. Document/source units scale with content zoom; logical-pixel styles remain
+constant in UI units as content zoom changes. Neither unit promises a physical
+size in millimetres.
 
 Camera changes update view uniforms. They must not rebuild unchanged geometry or
 recompute application rules. Cache scene and GPU data by stable identity and

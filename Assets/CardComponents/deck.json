@@ -1,0 +1,287 @@
+{
+  "libraryUuid": "cfef9c80-2515-43bb-81d0-bb4c6200e4cc",
+  "faces": [
+    {
+      "rank": 1,
+      "suit": "SUIT_CLUBS",
+      "documentUuid": "3e8502c9-a5f8-401d-a421-fd7ec2f89e04"
+    },
+    {
+      "rank": 2,
+      "suit": "SUIT_CLUBS",
+      "documentUuid": "c2f34714-1a97-489c-a4c2-468c5721683f"
+    },
+    {
+      "rank": 3,
+      "suit": "SUIT_CLUBS",
+      "documentUuid": "34955aa5-c1f0-4bd2-aa17-7f7dbbc52abb"
+    },
+    {
+      "rank": 4,
+      "suit": "SUIT_CLUBS",
+      "documentUuid": "3a634688-e912-4af7-81b5-aa732129043c"
+    },
+    {
+      "rank": 5,
+      "suit": "SUIT_CLUBS",
+      "documentUuid": "ac384a46-a17a-4aab-80cd-9ec0a931c434"
+    },
+    {
+      "rank": 6,
+      "suit": "SUIT_CLUBS",
+      "documentUuid": "dd5b83b0-f807-4c84-a6d0-09d0d0e83986"
+    },
+    {
+      "rank": 7,
+      "suit": "SUIT_CLUBS",
+      "documentUuid": "b280f8c3-aa80-4b52-93b9-71d826a9a24d"
+    },
+    {
+      "rank": 8,
+      "suit": "SUIT_CLUBS",
+      "documentUuid": "fefb7d02-e4f3-4888-ab28-429fc646d71d"
+    },
+    {
+      "rank": 9,
+      "suit": "SUIT_CLUBS",
+      "documentUuid": "ae7c4993-1452-4b66-a47e-68a1e91e5b3e"
+    },
+    {
+      "rank": 10,
+      "suit": "SUIT_CLUBS",
+      "documentUuid": "c86f1265-bcfe-4b15-8aed-e142274a9889"
+    },
+    {
+      "rank": 11,
+      "suit": "SUIT_CLUBS",
+      "documentUuid": "831eea8b-6fa3-4908-b002-b62fdca2174d"
+    },
+    {
+      "rank": 12,
+      "suit": "SUIT_CLUBS",
+      "documentUuid": "5350d3e0-8662-4af4-bd05-7f46981080e7"
+    },
+    {
+      "rank": 13,
+      "suit": "SUIT_CLUBS",
+      "documentUuid": "f852e022-cd5a-4f96-81b9-f5fef77c27da"
+    },
+    {
+      "rank": 1,
+      "suit": "SUIT_DIAMONDS",
+      "documentUuid": "76c6b682-621f-443b-ab7c-b8096aae569b"
+    },
+    {
+      "rank": 2,
+      "suit": "SUIT_DIAMONDS",
+      "documentUuid": "60340fb4-a742-46fe-907f-dd9a8fcd8652"
+    },
+    {
+      "rank": 3,
+      "suit": "SUIT_DIAMONDS",
+      "documentUuid": "83d2c1ea-0ad0-430f-b141-8d122630c845"
+    },
+    {
+      "rank": 4,
+      "suit": "SUIT_DIAMONDS",
+      "documentUuid": "c81f2315-21e1-427e-ad59-ab906a213eb3"
+    },
+    {
+      "rank": 5,
+      "suit": "SUIT_DIAMONDS",
+      "documentUuid": "133a7a87-d2c6-4f8e-b261-0cfc77a1413f"
+    },
+    {
+      "rank": 6,
+      "suit": "SUIT_DIAMONDS",
+      "documentUuid": "55027e37-2d0d-45df-8b92-26753167a45c"
+    },
+    {
+      "rank": 7,
+      "suit": "SUIT_DIAMONDS",
+      "documentUuid": "567c8672-aaba-4d55-a587-69f6159dba33"
+    },
+    {
+      "rank": 8,
+      "suit": "SUIT_DIAMONDS",
+      "documentUuid": "3a82395b-40f2-4932-82c5-cda9b3f14a85"
+    },
+    {
+      "rank": 9,
+      "suit": "SUIT_DIAMONDS",
+      "documentUuid": "3a135ea5-ea0f-4fbf-b10c-3262794c1dd8"
+    },
+    {
+      "rank": 10,
+      "suit": "SUIT_DIAMONDS",
+      "documentUuid": "1048980d-196f-4d66-b1b7-7d60fc2ab09d"
+    },
+    {
+      "rank": 11,
+      "suit": "SUIT_DIAMONDS",
+      "documentUuid": "3d6cef8d-e5bf-41c5-8209-5f87dc84ec85"
+    },
+    {
+      "rank": 12,
+      "suit": "SUIT_DIAMONDS",
+      "documentUuid": "14036f17-bb95-4522-9f41-d8defedbf0c0"
+    },
+    {
+      "rank": 13,
+      "suit": "SUIT_DIAMONDS",
+      "documentUuid": "1fb05fb7-63dc-4ad6-93c0-968dbf338070"
+    },
+    {
+      "rank": 1,
+      "suit": "SUIT_HEARTS",
+      "documentUuid": "2ae9388f-e8cb-430e-9c8a-bac4289fc9e3"
+    },
+    {
+      "rank": 2,
+      "suit": "SUIT_HEARTS",
+      "documentUuid": "22dfa18f-57cc-4dfc-8e39-354a2aa2e8a2"
+    },
+    {
+      "rank": 3,
+      "suit": "SUIT_HEARTS",
+      "documentUuid": "aefc1f7d-0c8a-424f-8cf2-65c97f281261"
+    },
+    {
+      "rank": 4,
+      "suit": "SUIT_HEARTS",
+      "documentUuid": "df2d09f6-c6bc-40bf-8540-5095b5c8af25"
+    },
+    {
+      "rank": 5,
+      "suit": "SUIT_HEARTS",
+      "documentUuid": "790ab4e6-36a7-4469-9862-e08e416f8a15"
+    },
+    {
+      "rank": 6,
+      "suit": "SUIT_HEARTS",
+      "documentUuid": "20366e61-e585-4ccc-8e89-a61cea03b1dc"
+    },
+    {
+      "rank": 7,
+      "suit": "SUIT_HEARTS",
+      "documentUuid": "b3fa84e6-41b0-4e2d-ab33-f4bd4df9ace4"
+    },
+    {
+      "rank": 8,
+      "suit": "SUIT_HEARTS",
+      "documentUuid": "b568e1e7-c425-42fe-b9dc-5608cb9428b6"
+    },
+    {
+      "rank": 9,
+      "suit": "SUIT_HEARTS",
+      "documentUuid": "bdbbb564-83d8-495e-aa63-4850751a43a4"
+    },
+    {
+      "rank": 10,
+      "suit": "SUIT_HEARTS",
+      "documentUuid": "3bddae64-1c8e-4aab-9302-a7225c24e71b"
+    },
+    {
+      "rank": 11,
+      "suit": "SUIT_HEARTS",
+      "documentUuid": "082f829d-9d63-4bda-be58-b7b05b770894"
+    },
+    {
+      "rank": 12,
+      "suit": "SUIT_HEARTS",
+      "documentUuid": "ac72f7d3-50e1-4510-a531-2f4232c491a3"
+    },
+    {
+      "rank": 13,
+      "suit": "SUIT_HEARTS",
+      "documentUuid": "24f6c720-5f3a-420a-9613-bab6fc5127c0"
+    },
+    {
+      "rank": 1,
+      "suit": "SUIT_SPADES",
+      "documentUuid": "b17292e7-3270-489f-8fb4-769b43a77ac7"
+    },
+    {
+      "rank": 2,
+      "suit": "SUIT_SPADES",
+      "documentUuid": "08c52126-a2fe-44e9-ba35-480eb86f39ff"
+    },
+    {
+      "rank": 3,
+      "suit": "SUIT_SPADES",
+      "documentUuid": "c32c16f9-650f-4ca9-ba24-96bf2d1020a3"
+    },
+    {
+      "rank": 4,
+      "suit": "SUIT_SPADES",
+      "documentUuid": "cc98c672-aa96-4a52-a3d8-1f4d27b008e6"
+    },
+    {
+      "rank": 5,
+      "suit": "SUIT_SPADES",
+      "documentUuid": "01d134c8-9266-43c9-a8c2-04d8b99b15d4"
+    },
+    {
+      "rank": 6,
+      "suit": "SUIT_SPADES",
+      "documentUuid": "f6ab9cbc-7289-4f00-a329-42256e004ae0"
+    },
+    {
+      "rank": 7,
+      "suit": "SUIT_SPADES",
+      "documentUuid": "496fa564-60e7-4aec-9132-21f51d7d6ca2"
+    },
+    {
+      "rank": 8,
+      "suit": "SUIT_SPADES",
+      "documentUuid": "4299cf07-7b8a-41b4-aae1-d03d34b9d6ac"
+    },
+    {
+      "rank": 9,
+      "suit": "SUIT_SPADES",
+      "documentUuid": "3f9fcf8b-a7a5-44e6-ac1f-ca4dcc0328d0"
+    },
+    {
+      "rank": 10,
+      "suit": "SUIT_SPADES",
+      "documentUuid": "05c16a4a-8723-4638-ac75-e5fa2f921823"
+    },
+    {
+      "rank": 11,
+      "suit": "SUIT_SPADES",
+      "documentUuid": "f530f5a1-7dec-48bd-ac49-1bab2e9bd069"
+    },
+    {
+      "rank": 12,
+      "suit": "SUIT_SPADES",
+      "documentUuid": "19d75d52-6788-4c00-afd8-2b0e42bf3350"
+    },
+    {
+      "rank": 13,
+      "suit": "SUIT_SPADES",
+      "documentUuid": "7180e4da-5be3-46da-831a-d4be80f34606"
+    }
+  ],
+  "backUuid": "d7306a36-87b9-4652-afa9-221100969dec",
+  "suitAssetUuids": [
+    "b660e772-060e-4d4d-b677-8763bdfbc273",
+    "252998ee-decf-4ffb-9769-caa6e40c864d",
+    "305c53ab-a811-4277-8f53-4b3126b83997",
+    "517ac331-ade2-4816-8826-6734fb1070fb"
+  ],
+  "rankAssetUuids": [
+    "1975dc5a-e394-4557-8b2a-8c9714134ab5",
+    "18d65e75-0ddb-4242-bb74-44dc4ed08690",
+    "280630af-87b1-472e-aca3-f18beb250817",
+    "411c99a0-4e73-442b-b71c-adc75ee37eb9",
+    "68cb7171-c4bd-40fd-ad4b-945e662620c4",
+    "7d475249-70c4-4c7e-8fe2-aae718dfe295",
+    "dc42de6f-3956-4b8a-9051-c9b70f073d58",
+    "3d71601c-daa2-455a-9ef6-3356064b77e1",
+    "86008412-597a-42fd-b57f-19956d8b3529",
+    "87fad737-bfd5-4717-8a83-9fa183ed270f",
+    "668c2edd-e9a5-45b2-89ac-746a62b3d79e",
+    "5519148e-8524-48a3-8b3d-ce80f4fa4452",
+    "691b482d-01cb-40b8-ba10-e77af994bfb6"
+  ]
+}

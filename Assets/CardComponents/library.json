@@ -1,0 +1,804 @@
+{
+  "uuid": "cfef9c80-2515-43bb-81d0-bb4c6200e4cc",
+  "version": 1,
+  "resources": [
+    {
+      "uuid": "6ffac843-2f2d-4fb4-a785-c5c08c56763b",
+      "path": "CARD.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 750,
+            "y": 1050
+          }
+        }
+      }
+    },
+    {
+      "uuid": "b660e772-060e-4d4d-b677-8763bdfbc273",
+      "path": "CLUB.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 182,
+            "y": 195
+          }
+        }
+      }
+    },
+    {
+      "uuid": "252998ee-decf-4ffb-9769-caa6e40c864d",
+      "path": "DIAMOND.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 142,
+            "y": 196
+          }
+        }
+      }
+    },
+    {
+      "uuid": "305c53ab-a811-4277-8f53-4b3126b83997",
+      "path": "HEART.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 174,
+            "y": 195
+          }
+        }
+      }
+    },
+    {
+      "uuid": "517ac331-ade2-4816-8826-6734fb1070fb",
+      "path": "SPADE.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 157,
+            "y": 195
+          }
+        }
+      }
+    },
+    {
+      "uuid": "1975dc5a-e394-4557-8b2a-8c9714134ab5",
+      "path": "A.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 67,
+            "y": 106
+          }
+        }
+      }
+    },
+    {
+      "uuid": "18d65e75-0ddb-4242-bb74-44dc4ed08690",
+      "path": "2.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 68,
+            "y": 106
+          }
+        }
+      }
+    },
+    {
+      "uuid": "280630af-87b1-472e-aca3-f18beb250817",
+      "path": "3.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 68,
+            "y": 106
+          }
+        }
+      }
+    },
+    {
+      "uuid": "411c99a0-4e73-442b-b71c-adc75ee37eb9",
+      "path": "4.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 68,
+            "y": 106
+          }
+        }
+      }
+    },
+    {
+      "uuid": "68cb7171-c4bd-40fd-ad4b-945e662620c4",
+      "path": "5.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 63,
+            "y": 106
+          }
+        }
+      }
+    },
+    {
+      "uuid": "7d475249-70c4-4c7e-8fe2-aae718dfe295",
+      "path": "6.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 63,
+            "y": 106
+          }
+        }
+      }
+    },
+    {
+      "uuid": "dc42de6f-3956-4b8a-9051-c9b70f073d58",
+      "path": "7.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 68,
+            "y": 106
+          }
+        }
+      }
+    },
+    {
+      "uuid": "3d71601c-daa2-455a-9ef6-3356064b77e1",
+      "path": "8.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 62,
+            "y": 106
+          }
+        }
+      }
+    },
+    {
+      "uuid": "86008412-597a-42fd-b57f-19956d8b3529",
+      "path": "9.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 63,
+            "y": 106
+          }
+        }
+      }
+    },
+    {
+      "uuid": "87fad737-bfd5-4717-8a83-9fa183ed270f",
+      "path": "10.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 68,
+            "y": 106
+          }
+        }
+      }
+    },
+    {
+      "uuid": "668c2edd-e9a5-45b2-89ac-746a62b3d79e",
+      "path": "J.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 68,
+            "y": 106
+          }
+        }
+      }
+    },
+    {
+      "uuid": "5519148e-8524-48a3-8b3d-ce80f4fa4452",
+      "path": "Q.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 68,
+            "y": 106
+          }
+        }
+      }
+    },
+    {
+      "uuid": "691b482d-01cb-40b8-ba10-e77af994bfb6",
+      "path": "K.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 68,
+            "y": 106
+          }
+        }
+      }
+    },
+    {
+      "uuid": "28d8135b-53b8-4391-b37e-840904cfc384",
+      "path": "ROYAL_FRAME.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 545,
+            "y": 856
+          }
+        }
+      }
+    },
+    {
+      "uuid": "8843a6e3-1491-4772-a667-5656d63a937a",
+      "path": "JACK_CLUB.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 532,
+            "y": 849
+          }
+        }
+      }
+    },
+    {
+      "uuid": "d43ee978-9b92-4ddf-8f8c-7ef63da45d4f",
+      "path": "QUEEN_CLUB.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 532,
+            "y": 849
+          }
+        }
+      }
+    },
+    {
+      "uuid": "9607b1fe-8460-4359-8aaa-2ebf8a9d6425",
+      "path": "KING_CLUB.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 532,
+            "y": 860
+          }
+        }
+      }
+    },
+    {
+      "uuid": "4e606a8c-9b24-4859-949a-be435b38c438",
+      "path": "JACK_DIAMOND.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 543,
+            "y": 860
+          }
+        }
+      }
+    },
+    {
+      "uuid": "76ae2770-866a-41cd-9a87-5fdec99ad036",
+      "path": "QUEEEN_DIAMOND.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 543,
+            "y": 860
+          }
+        }
+      }
+    },
+    {
+      "uuid": "6a125edf-41f0-4819-a9c1-f8d6828a4acc",
+      "path": "KING_DIAMOND.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 532,
+            "y": 860
+          }
+        }
+      }
+    },
+    {
+      "uuid": "f8fb5076-99e8-40ed-84db-f9325c12ceb8",
+      "path": "JACK_HEART.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 532,
+            "y": 849
+          }
+        }
+      }
+    },
+    {
+      "uuid": "a84f9487-73cc-4891-80e5-8dfd58f3ce20",
+      "path": "QUEEN_HEART.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 531,
+            "y": 850
+          }
+        }
+      }
+    },
+    {
+      "uuid": "04d7f374-65a3-46c9-8069-c1a003f37bd1",
+      "path": "KING_HEART.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 532,
+            "y": 860
+          }
+        }
+      }
+    },
+    {
+      "uuid": "0092b0c5-8acc-4d85-afbf-e505b1f26538",
+      "path": "JACK_SPADE.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 532,
+            "y": 849
+          }
+        }
+      }
+    },
+    {
+      "uuid": "1f70dfa7-1a43-4d81-9126-fc180c5614f7",
+      "path": "QUEEN_SPADE.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 531,
+            "y": 849
+          }
+        }
+      }
+    },
+    {
+      "uuid": "faddecab-40c3-4d39-bde1-8728833dad03",
+      "path": "KING_SPADE.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 532,
+            "y": 860
+          }
+        }
+      }
+    },
+    {
+      "uuid": "cea9f046-ba8d-4767-b89f-8d8b682b79c7",
+      "path": "JOKER_HAT.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 225,
+            "y": 195
+          }
+        }
+      }
+    },
+    {
+      "uuid": "7c99bba4-476d-45af-a518-613fe6295c7d",
+      "path": "JOKER_TEXT.svg",
+      "svg": {
+        "bounds": {
+          "min": {
+            "x": 0,
+            "y": 0
+          },
+          "max": {
+            "x": 69,
+            "y": 396
+          }
+        }
+      }
+    },
+    {
+      "uuid": "bab8b83f-f4a9-4781-833c-d8906a1be89b",
+      "path": "styles/card.json",
+      "style": {}
+    },
+    {
+      "uuid": "3e8502c9-a5f8-401d-a421-fd7ec2f89e04",
+      "path": "layouts/1-clubs.json",
+      "document": {}
+    },
+    {
+      "uuid": "c2f34714-1a97-489c-a4c2-468c5721683f",
+      "path": "layouts/2-clubs.json",
+      "document": {}
+    },
+    {
+      "uuid": "34955aa5-c1f0-4bd2-aa17-7f7dbbc52abb",
+      "path": "layouts/3-clubs.json",
+      "document": {}
+    },
+    {
+      "uuid": "3a634688-e912-4af7-81b5-aa732129043c",
+      "path": "layouts/4-clubs.json",
+      "document": {}
+    },
+    {
+      "uuid": "ac384a46-a17a-4aab-80cd-9ec0a931c434",
+      "path": "layouts/5-clubs.json",
+      "document": {}
+    },
+    {
+      "uuid": "dd5b83b0-f807-4c84-a6d0-09d0d0e83986",
+      "path": "layouts/6-clubs.json",
+      "document": {}
+    },
+    {
+      "uuid": "b280f8c3-aa80-4b52-93b9-71d826a9a24d",
+      "path": "layouts/7-clubs.json",
+      "document": {}
+    },
+    {
+      "uuid": "fefb7d02-e4f3-4888-ab28-429fc646d71d",
+      "path": "layouts/8-clubs.json",
+      "document": {}
+    },
+    {
+      "uuid": "ae7c4993-1452-4b66-a47e-68a1e91e5b3e",
+      "path": "layouts/9-clubs.json",
+      "document": {}
+    },
+    {
+      "uuid": "c86f1265-bcfe-4b15-8aed-e142274a9889",
+      "path": "layouts/10-clubs.json",
+      "document": {}
+    },
+    {
+      "uuid": "831eea8b-6fa3-4908-b002-b62fdca2174d",
+      "path": "layouts/11-clubs.json",
+      "document": {}
+    },
+    {
+      "uuid": "5350d3e0-8662-4af4-bd05-7f46981080e7",
+      "path": "layouts/12-clubs.json",
+      "document": {}
+    },
+    {
+      "uuid": "f852e022-cd5a-4f96-81b9-f5fef77c27da",
+      "path": "layouts/13-clubs.json",
+      "document": {}
+    },
+    {
+      "uuid": "76c6b682-621f-443b-ab7c-b8096aae569b",
+      "path": "layouts/1-diamonds.json",
+      "document": {}
+    },
+    {
+      "uuid": "60340fb4-a742-46fe-907f-dd9a8fcd8652",
+      "path": "layouts/2-diamonds.json",
+      "document": {}
+    },
+    {
+      "uuid": "83d2c1ea-0ad0-430f-b141-8d122630c845",
+      "path": "layouts/3-diamonds.json",
+      "document": {}
+    },
+    {
+      "uuid": "c81f2315-21e1-427e-ad59-ab906a213eb3",
+      "path": "layouts/4-diamonds.json",
+      "document": {}
+    },
+    {
+      "uuid": "133a7a87-d2c6-4f8e-b261-0cfc77a1413f",
+      "path": "layouts/5-diamonds.json",
+      "document": {}
+    },
+    {
+      "uuid": "55027e37-2d0d-45df-8b92-26753167a45c",
+      "path": "layouts/6-diamonds.json",
+      "document": {}
+    },
+    {
+      "uuid": "567c8672-aaba-4d55-a587-69f6159dba33",
+      "path": "layouts/7-diamonds.json",
+      "document": {}
+    },
+    {
+      "uuid": "3a82395b-40f2-4932-82c5-cda9b3f14a85",
+      "path": "layouts/8-diamonds.json",
+      "document": {}
+    },
+    {
+      "uuid": "3a135ea5-ea0f-4fbf-b10c-3262794c1dd8",
+      "path": "layouts/9-diamonds.json",
+      "document": {}
+    },
+    {
+      "uuid": "1048980d-196f-4d66-b1b7-7d60fc2ab09d",
+      "path": "layouts/10-diamonds.json",
+      "document": {}
+    },
+    {
+      "uuid": "3d6cef8d-e5bf-41c5-8209-5f87dc84ec85",
+      "path": "layouts/11-diamonds.json",
+      "document": {}
+    },
+    {
+      "uuid": "14036f17-bb95-4522-9f41-d8defedbf0c0",
+      "path": "layouts/12-diamonds.json",
+      "document": {}
+    },
+    {
+      "uuid": "1fb05fb7-63dc-4ad6-93c0-968dbf338070",
+      "path": "layouts/13-diamonds.json",
+      "document": {}
+    },
+    {
+      "uuid": "2ae9388f-e8cb-430e-9c8a-bac4289fc9e3",
+      "path": "layouts/1-hearts.json",
+      "document": {}
+    },
+    {
+      "uuid": "22dfa18f-57cc-4dfc-8e39-354a2aa2e8a2",
+      "path": "layouts/2-hearts.json",
+      "document": {}
+    },
+    {
+      "uuid": "aefc1f7d-0c8a-424f-8cf2-65c97f281261",
+      "path": "layouts/3-hearts.json",
+      "document": {}
+    },
+    {
+      "uuid": "df2d09f6-c6bc-40bf-8540-5095b5c8af25",
+      "path": "layouts/4-hearts.json",
+      "document": {}
+    },
+    {
+      "uuid": "790ab4e6-36a7-4469-9862-e08e416f8a15",
+      "path": "layouts/5-hearts.json",
+      "document": {}
+    },
+    {
+      "uuid": "20366e61-e585-4ccc-8e89-a61cea03b1dc",
+      "path": "layouts/6-hearts.json",
+      "document": {}
+    },
+    {
+      "uuid": "b3fa84e6-41b0-4e2d-ab33-f4bd4df9ace4",
+      "path": "layouts/7-hearts.json",
+      "document": {}
+    },
+    {
+      "uuid": "b568e1e7-c425-42fe-b9dc-5608cb9428b6",
+      "path": "layouts/8-hearts.json",
+      "document": {}
+    },
+    {
+      "uuid": "bdbbb564-83d8-495e-aa63-4850751a43a4",
+      "path": "layouts/9-hearts.json",
+      "document": {}
+    },
+    {
+      "uuid": "3bddae64-1c8e-4aab-9302-a7225c24e71b",
+      "path": "layouts/10-hearts.json",
+      "document": {}
+    },
+    {
+      "uuid": "082f829d-9d63-4bda-be58-b7b05b770894",
+      "path": "layouts/11-hearts.json",
+      "document": {}
+    },
+    {
+      "uuid": "ac72f7d3-50e1-4510-a531-2f4232c491a3",
+      "path": "layouts/12-hearts.json",
+      "document": {}
+    },
+    {
+      "uuid": "24f6c720-5f3a-420a-9613-bab6fc5127c0",
+      "path": "layouts/13-hearts.json",
+      "document": {}
+    },
+    {
+      "uuid": "b17292e7-3270-489f-8fb4-769b43a77ac7",
+      "path": "layouts/1-spades.json",
+      "document": {}
+    },
+    {
+      "uuid": "08c52126-a2fe-44e9-ba35-480eb86f39ff",
+      "path": "layouts/2-spades.json",
+      "document": {}
+    },
+    {
+      "uuid": "c32c16f9-650f-4ca9-ba24-96bf2d1020a3",
+      "path": "layouts/3-spades.json",
+      "document": {}
+    },
+    {
+      "uuid": "cc98c672-aa96-4a52-a3d8-1f4d27b008e6",
+      "path": "layouts/4-spades.json",
+      "document": {}
+    },
+    {
+      "uuid": "01d134c8-9266-43c9-a8c2-04d8b99b15d4",
+      "path": "layouts/5-spades.json",
+      "document": {}
+    },
+    {
+      "uuid": "f6ab9cbc-7289-4f00-a329-42256e004ae0",
+      "path": "layouts/6-spades.json",
+      "document": {}
+    },
+    {
+      "uuid": "496fa564-60e7-4aec-9132-21f51d7d6ca2",
+      "path": "layouts/7-spades.json",
+      "document": {}
+    },
+    {
+      "uuid": "4299cf07-7b8a-41b4-aae1-d03d34b9d6ac",
+      "path": "layouts/8-spades.json",
+      "document": {}
+    },
+    {
+      "uuid": "3f9fcf8b-a7a5-44e6-ac1f-ca4dcc0328d0",
+      "path": "layouts/9-spades.json",
+      "document": {}
+    },
+    {
+      "uuid": "05c16a4a-8723-4638-ac75-e5fa2f921823",
+      "path": "layouts/10-spades.json",
+      "document": {}
+    },
+    {
+      "uuid": "f530f5a1-7dec-48bd-ac49-1bab2e9bd069",
+      "path": "layouts/11-spades.json",
+      "document": {}
+    },
+    {
+      "uuid": "19d75d52-6788-4c00-afd8-2b0e42bf3350",
+      "path": "layouts/12-spades.json",
+      "document": {}
+    },
+    {
+      "uuid": "7180e4da-5be3-46da-831a-d4be80f34606",
+      "path": "layouts/13-spades.json",
+      "document": {}
+    },
+    {
+      "uuid": "d7306a36-87b9-4652-afa9-221100969dec",
+      "path": "layouts/back.json",
+      "document": {}
+    }
+  ]
+}

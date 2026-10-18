@@ -1,0 +1,11 @@
+{
+  "uuid": "bab8b83f-f4a9-4781-833c-d8906a1be89b",
+  "outlineColor": {
+    "r": 45,
+    "g": 45,
+    "b": 45,
+    "a": 255
+  },
+  "outlineWidth": 1.25,
+  "outlineUnit": "WIDTH_UNIT_LOGICAL_PIXELS"
+}

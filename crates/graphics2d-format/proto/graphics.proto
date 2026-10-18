@@ -1,0 +1,78 @@
+syntax = "proto3";
+package graphics.v1;
+
+message Point { float x = 1; float y = 2; }
+message Bounds { Point min = 1; Point max = 2; }
+message Color { uint32 r = 1; uint32 g = 2; uint32 b = 3; uint32 a = 4; }
+
+message SimplePlacement {
+  Point position = 1;
+  Point x_direction = 2;
+  float scale = 3;
+  sint32 handedness = 4;
+}
+
+message Instance {
+  string asset_uuid = 1;
+  oneof placement { SimplePlacement simple = 2; }
+  // An absent color preserves the SVG's original colors.
+  Color color = 3;
+  optional string style_uuid = 4;
+}
+
+message Document {
+  string uuid = 1;
+  Bounds view = 2;
+  // List order is paint order, from back to front.
+  repeated Instance instances = 3;
+}
+
+enum WidthUnit {
+  WIDTH_UNIT_UNSPECIFIED = 0;
+  WIDTH_UNIT_SOURCE = 1;
+  WIDTH_UNIT_LOGICAL_PIXELS = 2;
+}
+
+message Style {
+  string uuid = 1;
+  Color outline_color = 2;
+  float outline_width = 3;
+  WidthUnit outline_unit = 4;
+  // Outlines follow the source path and are clipped to its interior.
+}
+
+message SvgSource { Bounds bounds = 1; }
+message DocumentSource {}
+message StyleSource {}
+message Resource {
+  string uuid = 1;
+  string path = 2;
+  oneof source {
+    SvgSource svg = 3;
+    DocumentSource document = 4;
+    StyleSource style = 5;
+  }
+}
+
+message Library {
+  string uuid = 1;
+  uint32 version = 2;
+  repeated Resource resources = 3;
+}
+
+enum Suit {
+  SUIT_UNSPECIFIED = 0;
+  SUIT_CLUBS = 1;
+  SUIT_DIAMONDS = 2;
+  SUIT_HEARTS = 3;
+  SUIT_SPADES = 4;
+}
+message Face { uint32 rank = 1; Suit suit = 2; string document_uuid = 3; }
+message Deck {
+  string library_uuid = 1;
+  repeated Face faces = 2;
+  string back_uuid = 3;
+  // These references make the same artwork available for decorations.
+  repeated string suit_asset_uuids = 4;
+  repeated string rank_asset_uuids = 5;
+}

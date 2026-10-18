@@ -5,7 +5,16 @@ version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license = "CC0-1.0"
-include = ["src/**", "*.svg", "readme.txt", "README.md"]
+include = ["src/**", "build.rs", "*.svg", "*.json", "layouts/*.json", "styles/*.json", "readme.txt", "README.md"]
 
 [dependencies]
 graphics2d = { version = "0.1.0", path = "../../crates/graphics2d" }
+graphics2d-format = { version = "0.1.0", path = "../../crates/graphics2d-format" }
+
+[build-dependencies]
+graphics2d-format = { version = "0.1.0", path = "../../crates/graphics2d-format" }
+serde_json = "1"
+
+[dev-dependencies]
+serde_json = "1"
+prost = "0.14"

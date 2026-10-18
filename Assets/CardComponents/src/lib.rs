@@ -1,11 +1,11 @@
-//! Shared card artwork and ordered card compositions in a 750 by 1050 document.
+//! Shared SVG artwork and data-defined card compositions.
 
-use graphics2d::{
-    AssetId, Bounds, Document, Handedness, Instance, Paint, Placement, SimplePlacement, SvgAsset,
-    Vec2, View,
-};
+use graphics2d::{AssetId, Document, View};
+use graphics2d_format::{Context, DeckBindings, LoadError};
 
-pub const CARD_BOUNDS: Bounds = Bounds::from_size(750.0, 1050.0);
+pub const MANIFEST: &str = include_str!("../library.json");
+pub const DECK: &str = include_str!("../deck.json");
+include!(concat!(env!("OUT_DIR"), "/bundled.rs"));
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Suit {
@@ -15,281 +15,57 @@ pub enum Suit {
     Spades,
 }
 
-impl Suit {
-    pub fn asset(self) -> AssetId {
-        AssetId(1 + self as usize)
+pub struct Deck {
+    pub context: Context,
+    pub bindings: DeckBindings,
+}
+
+impl Deck {
+    pub fn bundled() -> Result<Self, LoadError> {
+        Self::load(MANIFEST, DECK, |path| {
+            BUNDLED
+                .iter()
+                .find(|(p, _)| *p == path)
+                .map(|(_, text)| (*text).to_owned())
+                .ok_or_else(|| LoadError(format!("missing bundled resource: {path}")))
+        })
     }
-    pub fn color(self) -> [u8; 4] {
-        match self {
-            Self::Diamonds | Self::Hearts => [204, 0, 0, 255],
-            _ => [0, 0, 0, 255],
-        }
+
+    pub fn load(
+        manifest: &str,
+        deck: &str,
+        read: impl FnMut(&str) -> Result<String, LoadError>,
+    ) -> Result<Self, LoadError> {
+        let context = Context::load(manifest, read)?;
+        let bindings = DeckBindings::load(deck, &context)?;
+        Ok(Self { context, bindings })
     }
-}
 
-macro_rules! asset {
-    ($file:literal, $width:literal, $height:literal) => {
-        SvgAsset {
-            name: $file,
-            svg: include_str!(concat!("../", $file, ".svg")),
-            bounds: Bounds::from_size($width, $height),
-        }
-    };
-}
-
-pub static ASSETS: &[SvgAsset] = &[
-    asset!("CARD", 750.0, 1050.0),
-    asset!("CLUB", 182.0, 195.0),
-    asset!("DIAMOND", 142.0, 196.0),
-    asset!("HEART", 174.0, 195.0),
-    asset!("SPADE", 157.0, 195.0),
-    asset!("A", 67.0, 106.0),
-    asset!("2", 68.0, 106.0),
-    asset!("3", 68.0, 106.0),
-    asset!("4", 68.0, 106.0),
-    asset!("5", 63.0, 106.0),
-    asset!("6", 63.0, 106.0),
-    asset!("7", 68.0, 106.0),
-    asset!("8", 62.0, 106.0),
-    asset!("9", 63.0, 106.0),
-    asset!("10", 68.0, 106.0),
-    asset!("J", 68.0, 106.0),
-    asset!("Q", 68.0, 106.0),
-    asset!("K", 68.0, 106.0),
-    asset!("ROYAL_FRAME", 545.0, 856.0),
-    asset!("JACK_CLUB", 532.0, 849.0),
-    asset!("QUEEN_CLUB", 532.0, 849.0),
-    asset!("KING_CLUB", 532.0, 860.0),
-    asset!("JACK_DIAMOND", 543.0, 860.0),
-    asset!("QUEEEN_DIAMOND", 543.0, 860.0),
-    asset!("KING_DIAMOND", 532.0, 860.0),
-    asset!("JACK_HEART", 532.0, 849.0),
-    asset!("QUEEN_HEART", 531.0, 850.0),
-    asset!("KING_HEART", 532.0, 860.0),
-    asset!("JACK_SPADE", 532.0, 849.0),
-    asset!("QUEEN_SPADE", 531.0, 849.0),
-    asset!("KING_SPADE", 532.0, 860.0),
-    asset!("JOKER_HAT", 225.0, 195.0),
-    asset!("JOKER_TEXT", 69.0, 396.0),
-];
-
-pub fn rank_asset(rank: u8) -> Option<AssetId> {
-    (1..=13)
-        .contains(&rank)
-        .then_some(AssetId(4 + rank as usize))
-}
-
-pub fn face(rank: u8, suit: Suit) -> Option<Document> {
-    if !(1..=13).contains(&rank) {
-        return None;
+    pub fn face(&self, rank: u8, suit: Suit) -> Option<&Document> {
+        (1..=13).contains(&rank).then(|| {
+            self.context
+                .document(self.bindings.faces[suit as usize * 13 + rank as usize - 1])
+        })
     }
-    let mut document = Document::default();
-    document.instances.push(Instance {
-        asset: AssetId(0),
-        placement: Placement::Simple(SimplePlacement::IDENTITY),
-        paint: Paint::Original,
-    });
-    let ink = Paint::Solid(suit.color());
-    let rank_asset = AssetId(4 + rank as usize);
-    for inverted in [false, true] {
-        let center = |point| {
-            if inverted {
-                CARD_BOUNDS.size() - point
-            } else {
-                point
-            }
-        };
-        add_centered(
-            &mut document,
-            rank_asset,
-            center(Vec2::new(58.0, 75.0)),
-            106.0,
-            inverted,
-            ink,
-        );
-        add_centered(
-            &mut document,
-            suit.asset(),
-            center(Vec2::new(58.0, 177.0)),
-            70.0,
-            inverted,
-            ink,
-        );
+    pub fn back(&self) -> &Document {
+        self.context.document(self.bindings.back)
     }
-    if rank >= 11 {
-        let court = AssetId(19 + suit as usize * 3 + (rank - 11) as usize);
-        add_centered(
-            &mut document,
-            court,
-            Vec2::new(375.0, 525.0),
-            845.0,
-            false,
-            Paint::Original,
-        );
-        add_centered(
-            &mut document,
-            suit.asset(),
-            Vec2::new(190.0, 195.0),
-            185.0,
-            false,
-            ink,
-        );
-        add_centered(
-            &mut document,
-            suit.asset(),
-            Vec2::new(560.0, 855.0),
-            185.0,
-            true,
-            ink,
-        );
-        add_centered(
-            &mut document,
-            AssetId(18),
-            Vec2::new(375.0, 525.0),
-            856.0,
-            false,
-            Paint::Original,
-        );
-    } else if rank == 1 {
-        add_centered(
-            &mut document,
-            suit.asset(),
-            Vec2::new(375.0, 525.0),
-            195.0,
-            false,
-            ink,
-        );
-    } else {
-        for &(x, y) in pip_layout(rank) {
-            add_centered(
-                &mut document,
-                suit.asset(),
-                Vec2::new(375.0 + x * 155.0, 525.0 + y * 385.0),
-                195.0,
-                y > 0.0,
-                ink,
-            );
-        }
+    pub fn suit_asset(&self, suit: Suit) -> AssetId {
+        self.bindings.suits[suit as usize]
     }
-    Some(document)
-}
-
-pub fn view(document: &Document) -> View<'_> {
-    View::new(document, CARD_BOUNDS)
-}
-
-pub fn back() -> Document {
-    let mut document = Document::default();
-    add_centered(
-        &mut document,
-        AssetId(0),
-        CARD_BOUNDS.center(),
-        1050.0,
-        false,
-        Paint::Original,
-    );
-    add_centered(
-        &mut document,
-        AssetId(0),
-        CARD_BOUNDS.center(),
-        1008.0,
-        false,
-        Paint::Solid([35, 65, 125, 255]),
-    );
-    add_centered(
-        &mut document,
-        Suit::Spades.asset(),
-        CARD_BOUNDS.center(),
-        260.0,
-        false,
-        Paint::Solid([255, 255, 255, 100]),
-    );
-    document
-}
-
-fn add_centered(
-    document: &mut Document,
-    asset: AssetId,
-    center: Vec2,
-    height: f32,
-    inverted: bool,
-    paint: Paint,
-) {
-    let scale = height / ASSETS[asset.0].bounds.size().y;
-    let x_direction = if inverted { -Vec2::X } else { Vec2::X };
-    let origin = center - ASSETS[asset.0].bounds.center() * scale * x_direction.x;
-    let placement = SimplePlacement::new(origin, x_direction, scale, Handedness::Positive)
-        .expect("finite card layout");
-    document.instances.push(Instance {
-        asset,
-        placement: Placement::Simple(placement),
-        paint,
-    });
-}
-
-fn pip_layout(rank: u8) -> &'static [(f32, f32)] {
-    match rank {
-        2 => &[(0.0, -1.0), (0.0, 1.0)],
-        3 => &[(0.0, -1.0), (0.0, 0.0), (0.0, 1.0)],
-        4 => &[(-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)],
-        5 => &[
-            (-1.0, -1.0),
-            (1.0, -1.0),
-            (0.0, 0.0),
-            (-1.0, 1.0),
-            (1.0, 1.0),
-        ],
-        6 => &[
-            (-1.0, -1.0),
-            (1.0, -1.0),
-            (-1.0, 0.0),
-            (1.0, 0.0),
-            (-1.0, 1.0),
-            (1.0, 1.0),
-        ],
-        7 => &[
-            (-1.0, -1.0),
-            (1.0, -1.0),
-            (0.0, -0.5),
-            (-1.0, 0.0),
-            (1.0, 0.0),
-            (-1.0, 1.0),
-            (1.0, 1.0),
-        ],
-        8 => &[
-            (-1.0, -1.0),
-            (1.0, -1.0),
-            (0.0, -0.5),
-            (-1.0, 0.0),
-            (1.0, 0.0),
-            (0.0, 0.5),
-            (-1.0, 1.0),
-            (1.0, 1.0),
-        ],
-        9 => &[
-            (-1.0, -1.0),
-            (1.0, -1.0),
-            (-1.0, -1.0 / 3.0),
-            (1.0, -1.0 / 3.0),
-            (0.0, 0.0),
-            (-1.0, 1.0 / 3.0),
-            (1.0, 1.0 / 3.0),
-            (-1.0, 1.0),
-            (1.0, 1.0),
-        ],
-        10 => &[
-            (-1.0, -1.0),
-            (1.0, -1.0),
-            (0.0, -2.0 / 3.0),
-            (-1.0, -1.0 / 3.0),
-            (1.0, -1.0 / 3.0),
-            (-1.0, 1.0 / 3.0),
-            (1.0, 1.0 / 3.0),
-            (0.0, 2.0 / 3.0),
-            (-1.0, 1.0),
-            (1.0, 1.0),
-        ],
-        _ => &[],
+    pub fn rank_asset(&self, rank: u8) -> Option<AssetId> {
+        (1..=13)
+            .contains(&rank)
+            .then(|| self.bindings.ranks[rank as usize - 1])
+    }
+    pub fn face_view(&self, rank: u8, suit: Suit) -> Option<View<'_>> {
+        (1..=13).contains(&rank).then(|| {
+            self.context
+                .view(self.bindings.faces[suit as usize * 13 + rank as usize - 1])
+        })
+    }
+    pub fn back_view(&self) -> View<'_> {
+        self.context.view(self.bindings.back)
     }
 }
 
@@ -299,20 +75,21 @@ mod tests {
 
     #[test]
     fn two_of_spades_is_seven_ordered_instances_of_three_assets() {
-        let card = face(2, Suit::Spades).unwrap();
+        let deck = Deck::bundled().unwrap();
+        let card = deck.face(2, Suit::Spades).unwrap();
         assert_eq!(card.instances.len(), 7);
-        assert_eq!(card.instances[0].asset, AssetId(0));
+        assert!(card.instances[0].style.is_some());
         assert_eq!(
             card.instances
                 .iter()
-                .filter(|instance| instance.asset == Suit::Spades.asset())
+                .filter(|instance| instance.asset == deck.suit_asset(Suit::Spades))
                 .count(),
             4
         );
         assert_eq!(
             card.instances
                 .iter()
-                .filter(|instance| instance.asset == rank_asset(2).unwrap())
+                .filter(|instance| instance.asset == deck.rank_asset(2).unwrap())
                 .count(),
             2
         );
@@ -322,23 +99,41 @@ mod tests {
 
     #[test]
     fn every_face_has_the_expected_pips_unique_courts_and_in_bounds_instances() {
+        let deck = Deck::bundled().unwrap();
+        let assets = &deck.context.resources.assets;
         let mut courts = std::collections::HashSet::new();
         for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             for rank in 1..=13 {
-                let card = face(rank, suit).unwrap();
+                let card = deck.face(rank, suit).unwrap();
                 let expected_suits = if rank < 11 { 2 + rank as usize } else { 4 };
                 assert_eq!(
                     card.instances
                         .iter()
-                        .filter(|instance| instance.asset == suit.asset())
+                        .filter(|instance| instance.asset == deck.suit_asset(suit))
                         .count(),
                     expected_suits
                 );
                 if rank >= 11 {
                     assert!(courts.insert(card.instances[5].asset));
+                    let frame = &card.instances[8];
+                    let frame_matrix = frame.placement.matrix();
+                    let frame_min =
+                        frame_matrix.transform_point2(assets[frame.asset.0].bounds.min());
+                    let frame_max =
+                        frame_matrix.transform_point2(assets[frame.asset.0].bounds.max());
+                    for symbol in &card.instances[6..8] {
+                        for point in assets[symbol.asset.0].bounds.corners() {
+                            let point = symbol.placement.matrix().transform_point2(point);
+                            assert!(
+                                (point - frame_min).min_element() >= 20.0
+                                    && (frame_max - point).min_element() >= 20.0,
+                                "inner {suit:?} symbol touches the court frame"
+                            );
+                        }
+                    }
                 }
                 for instance in &card.instances {
-                    let asset = &ASSETS[instance.asset.0];
+                    let asset = &assets[instance.asset.0];
                     for point in asset.bounds.corners() {
                         let point = instance.placement.matrix().transform_point2(point);
                         assert!(
@@ -357,14 +152,14 @@ mod tests {
                         let point = pip
                             .placement
                             .matrix()
-                            .transform_point2(ASSETS[pip.asset.0].bounds.center());
+                            .transform_point2(assets[pip.asset.0].bounds.center());
                         assert!(centers.insert((point.x.round() as i32, point.y.round() as i32)));
                     }
                 }
             }
         }
         assert_eq!(courts.len(), 12);
-        assert!(face(0, Suit::Clubs).is_none());
-        assert!(face(14, Suit::Clubs).is_none());
+        assert!(deck.face(0, Suit::Clubs).is_none());
+        assert!(deck.face(14, Suit::Clubs).is_none());
     }
 }

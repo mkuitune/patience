@@ -1,0 +1,187 @@
+{
+  "uuid": "24f6c720-5f3a-420a-9613-bab6fc5127c0",
+  "view": {
+    "min": {
+      "x": 0,
+      "y": 0
+    },
+    "max": {
+      "x": 750,
+      "y": 1050
+    }
+  },
+  "instances": [
+    {
+      "assetUuid": "6ffac843-2f2d-4fb4-a785-c5c08c56763b",
+      "simple": {
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "xDirection": {
+          "x": 1,
+          "y": 0
+        },
+        "scale": 1,
+        "handedness": 1
+      },
+      "styleUuid": "bab8b83f-f4a9-4781-833c-d8906a1be89b"
+    },
+    {
+      "assetUuid": "691b482d-01cb-40b8-ba10-e77af994bfb6",
+      "simple": {
+        "position": {
+          "x": 24,
+          "y": 22
+        },
+        "xDirection": {
+          "x": 1,
+          "y": 0
+        },
+        "scale": 1,
+        "handedness": 1
+      },
+      "color": {
+        "r": 204,
+        "g": 0,
+        "b": 0,
+        "a": 255
+      }
+    },
+    {
+      "assetUuid": "305c53ab-a811-4277-8f53-4b3126b83997",
+      "simple": {
+        "position": {
+          "x": 26.76923076923077,
+          "y": 142
+        },
+        "xDirection": {
+          "x": 1,
+          "y": 0
+        },
+        "scale": 0.358974358974359,
+        "handedness": 1
+      },
+      "color": {
+        "r": 204,
+        "g": 0,
+        "b": 0,
+        "a": 255
+      }
+    },
+    {
+      "assetUuid": "691b482d-01cb-40b8-ba10-e77af994bfb6",
+      "simple": {
+        "position": {
+          "x": 726,
+          "y": 1028
+        },
+        "xDirection": {
+          "x": -1,
+          "y": 0
+        },
+        "scale": 1,
+        "handedness": 1
+      },
+      "color": {
+        "r": 204,
+        "g": 0,
+        "b": 0,
+        "a": 255
+      }
+    },
+    {
+      "assetUuid": "305c53ab-a811-4277-8f53-4b3126b83997",
+      "simple": {
+        "position": {
+          "x": 723.2307692307693,
+          "y": 908
+        },
+        "xDirection": {
+          "x": -1,
+          "y": 0
+        },
+        "scale": 0.358974358974359,
+        "handedness": 1
+      },
+      "color": {
+        "r": 204,
+        "g": 0,
+        "b": 0,
+        "a": 255
+      }
+    },
+    {
+      "assetUuid": "04d7f374-65a3-46c9-8069-c1a003f37bd1",
+      "simple": {
+        "position": {
+          "x": 113.63953488372096,
+          "y": 102.5
+        },
+        "xDirection": {
+          "x": 1,
+          "y": 0
+        },
+        "scale": 0.9825581395348837,
+        "handedness": 1
+      }
+    },
+    {
+      "assetUuid": "305c53ab-a811-4277-8f53-4b3126b83997",
+      "simple": {
+        "position": {
+          "x": 127.46153846153847,
+          "y": 122.5
+        },
+        "xDirection": {
+          "x": 1,
+          "y": 0
+        },
+        "scale": 0.9487179487179487,
+        "handedness": 1
+      },
+      "color": {
+        "r": 204,
+        "g": 0,
+        "b": 0,
+        "a": 255
+      }
+    },
+    {
+      "assetUuid": "305c53ab-a811-4277-8f53-4b3126b83997",
+      "simple": {
+        "position": {
+          "x": 622.5384615384615,
+          "y": 927.5
+        },
+        "xDirection": {
+          "x": -1,
+          "y": 0
+        },
+        "scale": 0.9487179487179487,
+        "handedness": 1
+      },
+      "color": {
+        "r": 204,
+        "g": 0,
+        "b": 0,
+        "a": 255
+      }
+    },
+    {
+      "assetUuid": "28d8135b-53b8-4391-b37e-840904cfc384",
+      "simple": {
+        "position": {
+          "x": 102.5,
+          "y": 97
+        },
+        "xDirection": {
+          "x": 1,
+          "y": 0
+        },
+        "scale": 1,
+        "handedness": 1
+      }
+    }
+  ]
+}

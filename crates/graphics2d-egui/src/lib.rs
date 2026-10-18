@@ -1,9 +1,9 @@
 //! Rasterizes shared SVG components and paints transformed instances through egui.
 
 use egui::{Color32, Rect, TextureHandle};
-use graphics2d::{AssetId, Paint, SvgAsset, Vec2, View};
+use graphics2d::{AssetId, Paint, Resources, Vec2, View, WidthUnit};
 use resvg::{tiny_skia, usvg};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -11,7 +11,11 @@ pub enum RenderError {
     #[error("unknown vector asset {0:?}")]
     UnknownAsset(AssetId),
     #[error("invalid SVG asset {name}: {reason}")]
-    InvalidSvg { name: &'static str, reason: String },
+    InvalidSvg { name: String, reason: String },
+    #[error("outline requires a single closed SVG path without effects")]
+    UnsupportedOutline,
+    #[error("unknown outline style")]
+    UnknownStyle,
     #[error("vector texture dimensions exceed the renderer limit")]
     TextureTooLarge,
 }
@@ -21,20 +25,27 @@ struct TextureKey {
     asset: AssetId,
     width: u32,
     height: u32,
-    mask: bool,
+    layer: TextureLayer,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum TextureLayer {
+    Original,
+    Mask,
+    Outline { color: [u8; 4], width: u32 },
 }
 
 pub struct Renderer {
-    assets: &'static [SvgAsset],
+    resources: Arc<Resources>,
     trees: HashMap<AssetId, usvg::Tree>,
     textures: HashMap<TextureKey, (TextureHandle, u64)>,
     frame: u64,
 }
 
 impl Renderer {
-    pub fn new(assets: &'static [SvgAsset]) -> Self {
+    pub fn new(resources: Arc<Resources>) -> Self {
         Self {
-            assets,
+            resources,
             trees: HashMap::new(),
             textures: HashMap::new(),
             frame: 0,
@@ -76,6 +87,7 @@ impl Renderer {
         };
         for instance in &view.document.instances {
             let asset = self
+                .resources
                 .assets
                 .get(instance.asset.0)
                 .ok_or(RenderError::UnknownAsset(instance.asset))?;
@@ -106,24 +118,40 @@ impl Renderer {
                 asset: instance.asset,
                 width: width as u32,
                 height: height as u32,
-                mask: matches!(instance.paint, Paint::Solid(_)),
+                layer: if matches!(instance.paint, Paint::Solid(_)) {
+                    TextureLayer::Mask
+                } else {
+                    TextureLayer::Original
+                },
             };
             let texture = self.texture(ui.ctx(), key)?;
             let color = match instance.paint {
                 Paint::Original => Color32::WHITE,
                 Paint::Solid([r, g, b, a]) => Color32::from_rgba_unmultiplied(r, g, b, a),
             };
-            let mut mesh = egui::Mesh::with_texture(texture);
-            for (pos, uv) in points.into_iter().zip([
-                egui::pos2(0.0, 0.0),
-                egui::pos2(1.0, 0.0),
-                egui::pos2(1.0, 1.0),
-                egui::pos2(0.0, 1.0),
-            ]) {
-                mesh.vertices.push(egui::epaint::Vertex { pos, uv, color });
+            paint_quad(&painter, points, texture, color);
+            if let Some(id) = instance.style {
+                let style = *self
+                    .resources
+                    .styles
+                    .get(id.0)
+                    .ok_or(RenderError::UnknownStyle)?;
+                let width = match style.unit {
+                    WidthUnit::Source => style.width,
+                    WidthUnit::LogicalPixels => {
+                        style.width / (scale * matrix.x_axis.truncate().length())
+                    }
+                };
+                let key = TextureKey {
+                    layer: TextureLayer::Outline {
+                        color: style.color,
+                        width: width.to_bits(),
+                    },
+                    ..key
+                };
+                let texture = self.texture(ui.ctx(), key)?;
+                paint_quad(&painter, points, texture, Color32::WHITE);
             }
-            mesh.indices.extend_from_slice(&[0, 1, 2, 0, 2, 3]);
-            painter.add(egui::Shape::mesh(mesh));
         }
         Ok(())
     }
@@ -138,14 +166,15 @@ impl Renderer {
             return Ok(texture.id());
         }
         let asset = self
+            .resources
             .assets
             .get(key.asset.0)
             .ok_or(RenderError::UnknownAsset(key.asset))?;
         if let std::collections::hash_map::Entry::Vacant(entry) = self.trees.entry(key.asset) {
             let tree =
-                usvg::Tree::from_str(asset.svg, &usvg::Options::default()).map_err(|error| {
+                usvg::Tree::from_str(&asset.svg, &usvg::Options::default()).map_err(|error| {
                     RenderError::InvalidSvg {
-                        name: asset.name,
+                        name: asset.name.clone(),
                         reason: error.to_string(),
                     }
                 })?;
@@ -158,8 +187,12 @@ impl Renderer {
             key.width as f32 / tree.size().width(),
             key.height as f32 / tree.size().height(),
         );
-        resvg::render(tree, transform, &mut pixmap.as_mut());
-        if key.mask {
+        if let TextureLayer::Outline { color, width } = key.layer {
+            pixmap = rasterize_outline(tree, key.width, key.height, color, f32::from_bits(width))?;
+        } else {
+            resvg::render(tree, transform, &mut pixmap.as_mut());
+        }
+        if key.layer == TextureLayer::Mask {
             for pixel in pixmap.data_mut().chunks_exact_mut(4) {
                 pixel[0] = pixel[3];
                 pixel[1] = pixel[3];
@@ -170,28 +203,134 @@ impl Renderer {
             [key.width as usize, key.height as usize],
             pixmap.data(),
         );
-        let texture = ctx.load_texture(asset.name, image, egui::TextureOptions::LINEAR);
+        let texture = ctx.load_texture(&asset.name, image, egui::TextureOptions::LINEAR);
         let id = texture.id();
         self.textures.insert(key, (texture, self.frame));
         Ok(id)
     }
 }
 
+fn paint_quad(
+    painter: &egui::Painter,
+    points: [egui::Pos2; 4],
+    texture: egui::TextureId,
+    color: Color32,
+) {
+    let mut mesh = egui::Mesh::with_texture(texture);
+    for (pos, uv) in points.into_iter().zip([
+        egui::pos2(0.0, 0.0),
+        egui::pos2(1.0, 0.0),
+        egui::pos2(1.0, 1.0),
+        egui::pos2(0.0, 1.0),
+    ]) {
+        mesh.vertices.push(egui::epaint::Vertex { pos, uv, color });
+    }
+    mesh.indices.extend_from_slice(&[0, 1, 2, 0, 2, 3]);
+    painter.add(egui::Shape::mesh(mesh));
+}
+
+/// Strokes the actual source path, clipping a double-width stroke to its interior.
+pub fn rasterize_outline(
+    tree: &usvg::Tree,
+    width: u32,
+    height: u32,
+    color: [u8; 4],
+    source_width: f32,
+) -> Result<tiny_skia::Pixmap, RenderError> {
+    let [usvg::Node::Path(path)] = tree.root().children() else {
+        return Err(RenderError::UnsupportedOutline);
+    };
+    if !source_width.is_finite() || source_width <= 0.0 {
+        return Err(RenderError::UnsupportedOutline);
+    }
+    let path_data = path
+        .data()
+        .clone()
+        .transform(path.abs_transform())
+        .ok_or(RenderError::UnsupportedOutline)?;
+    if !matches!(
+        path_data.segments().last(),
+        Some(tiny_skia::PathSegment::Close)
+    ) {
+        return Err(RenderError::UnsupportedOutline);
+    }
+    let transform = tiny_skia::Transform::from_scale(
+        width as f32 / tree.size().width(),
+        height as f32 / tree.size().height(),
+    );
+    let mut mask = tiny_skia::Mask::new(width, height).ok_or(RenderError::TextureTooLarge)?;
+    mask.fill_path(&path_data, tiny_skia::FillRule::Winding, true, transform);
+    let mut pixmap = tiny_skia::Pixmap::new(width, height).ok_or(RenderError::TextureTooLarge)?;
+    let mut paint = tiny_skia::Paint::default();
+    paint.set_color_rgba8(color[0], color[1], color[2], color[3]);
+    let stroke = tiny_skia::Stroke {
+        width: source_width * 2.0,
+        line_join: tiny_skia::LineJoin::Round,
+        ..Default::default()
+    };
+    pixmap.stroke_path(&path_data, &paint, &stroke, transform, Some(&mask));
+    Ok(pixmap)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use graphics2d::{Bounds, Document, Handedness, Instance, Placement, SimplePlacement};
+    use graphics2d::{
+        Bounds, Document, Handedness, Instance, Placement, SimplePlacement, SvgAsset,
+    };
 
-    static TEST_ASSETS: &[SvgAsset] = &[SvgAsset {
-        name: "square",
-        svg: r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><path d="M0 0H10V10H0Z" fill="black"/></svg>"#,
+    #[test]
+    fn logical_pixel_outlines_keep_their_width_across_card_zoom_and_display_scaling() {
+        let tree = usvg::Tree::from_str(&test_resources().assets[0].svg, &usvg::Options::default())
+            .unwrap();
+        for zoom in [10.0, 20.0] {
+            for pixels_per_point in [1.0, 2.0] {
+                let size = (10.0 * zoom * pixels_per_point) as u32;
+                let image =
+                    rasterize_outline(&tree, size, size, [45, 45, 45, 255], 1.25 / zoom).unwrap();
+                let row = image.height() / 2;
+                let coverage: f32 = (0..size / 2)
+                    .map(|x| f32::from(image.pixel(x, row).unwrap().alpha()) / 255.0)
+                    .sum();
+                assert!(
+                    (coverage / pixels_per_point - 1.25).abs() < 0.06,
+                    "{zoom}, {pixels_per_point}: {coverage}"
+                );
+                assert_eq!(image.pixel(size / 2, row).unwrap().alpha(), 0);
+                let image = rasterize_outline(&tree, size, size, [45, 45, 45, 255], 0.2).unwrap();
+                let coverage: f32 = (0..size / 2)
+                    .map(|x| f32::from(image.pixel(x, row).unwrap().alpha()) / 255.0)
+                    .sum();
+                assert!((coverage / pixels_per_point - 0.2 * zoom).abs() < 0.06);
+            }
+        }
+    }
+
+    #[test]
+    fn outlines_follow_curved_source_paths_and_remain_inside_them() {
+        let deck = playing_card_assets::Deck::bundled().unwrap();
+        let source = &deck.context.resources.assets[0];
+        let tree = usvg::Tree::from_str(&source.svg, &usvg::Options::default()).unwrap();
+        let image = rasterize_outline(&tree, 150, 210, [45, 45, 45, 255], 6.25).unwrap();
+        assert_eq!(image.pixel(0, 0).unwrap().alpha(), 0);
+        assert_eq!(image.pixel(75, 105).unwrap().alpha(), 0);
+        assert!(image.pixel(75, 0).unwrap().alpha() > 0);
+        assert!(image.pixel(0, 105).unwrap().alpha() > 0);
+        assert!(image.pixel(2, 2).unwrap().alpha() > 0);
+    }
+
+    fn test_resources() -> Arc<Resources> {
+        Arc::new(Resources { styles: vec![], assets: vec![SvgAsset {
+        name: "square".into(),
+        svg: r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><path d="M0 0H10V10H0Z" fill="black"/></svg>"#.into(),
         bounds: Bounds::from_size(10.0, 10.0),
-    }];
+    }] })
+    }
 
     #[test]
     fn view_bounds_frame_nonzero_document_coordinates_and_clip_only_when_requested() {
         let ctx = egui::Context::default();
-        let mut renderer = Renderer::new(TEST_ASSETS);
+        let mut renderer = Renderer::new(test_resources());
         let document = Document {
             instances: vec![Instance {
                 asset: AssetId(0),
@@ -200,6 +339,7 @@ mod tests {
                         .unwrap(),
                 ),
                 paint: Paint::Original,
+                style: None,
             }],
         };
         let fitted = Rect::from_min_max(egui::pos2(70.0, 20.0), egui::pos2(170.0, 120.0));
@@ -236,13 +376,14 @@ mod tests {
     #[test]
     fn instances_preserve_order_mirror_geometry_and_share_recolored_textures() {
         let ctx = egui::Context::default();
-        let mut renderer = Renderer::new(TEST_ASSETS);
+        let mut renderer = Renderer::new(test_resources());
         let document = Document {
             instances: vec![
                 Instance {
                     asset: AssetId(0),
                     placement: Placement::Simple(SimplePlacement::IDENTITY),
                     paint: Paint::Solid([255, 0, 0, 255]),
+                    style: None,
                 },
                 Instance {
                     asset: AssetId(0),
@@ -256,6 +397,7 @@ mod tests {
                         .unwrap(),
                     ),
                     paint: Paint::Solid([0, 0, 255, 255]),
+                    style: None,
                 },
             ],
         };
@@ -303,8 +445,10 @@ mod tests {
     fn all_bundled_components_and_card_faces_render_at_multiple_scales() {
         use playing_card_assets as deck;
         let ctx = egui::Context::default();
-        let mut renderer = Renderer::new(deck::ASSETS);
-        for asset in 0..deck::ASSETS.len() {
+        let deck = deck::Deck::bundled().unwrap();
+        let assets = &deck.context.resources.assets;
+        let mut renderer = Renderer::new(deck.context.resources.clone());
+        for (asset, source) in assets.iter().enumerate() {
             let _ = ctx.run(egui::RawInput::default(), |ctx| {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     let document = Document {
@@ -312,12 +456,13 @@ mod tests {
                             asset: AssetId(asset),
                             placement: Placement::Simple(SimplePlacement::IDENTITY),
                             paint: Paint::Original,
+                            style: None,
                         }],
                     };
                     renderer
                         .paint(
                             ui,
-                            View::new(&document, deck::ASSETS[asset].bounds),
+                            View::new(&document, source.bounds),
                             Rect::from_min_size(egui::pos2(20.0, 20.0), egui::vec2(108.0, 151.0)),
                         )
                         .unwrap();
@@ -338,16 +483,14 @@ mod tests {
                     ] {
                         for rank in 1..=13 {
                             renderer
-                                .paint(ui, deck::view(&deck::face(rank, suit).unwrap()), target)
+                                .paint(ui, deck.face_view(rank, suit).unwrap(), target)
                                 .unwrap();
                         }
                     }
-                    renderer
-                        .paint(ui, deck::view(&deck::back()), target)
-                        .unwrap();
+                    renderer.paint(ui, deck.back_view(), target).unwrap();
                 });
             });
         }
-        assert_eq!(renderer.trees.len(), deck::ASSETS.len());
+        assert_eq!(renderer.trees.len(), assets.len());
     }
 }

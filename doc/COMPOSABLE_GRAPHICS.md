@@ -1,111 +1,183 @@
 # Composable 2D graphics
 
-The `graphics2d` crate describes graphics as ordered instances in a document.
-It depends on math and serialization libraries, with no GUI or GPU dependencies.
-`graphics2d-egui` renders that data. `playing-card-assets` is one reusable asset
-library and a set of card compositions; it has no dependency on Klondike rules.
+Graphics are ordered asset instances in document space. A view frames a document
+with independent bounds. Card layouts and styles are data; Rust resolves and
+renders them without generating their layout.
 
-## Data model
+## Schema, storage, and runtime
 
-- A `SvgAsset` contains a name, embedded SVG, and local-space bounds.
-- An `AssetId` indexes the asset library supplied to the renderer. IDs belong to
-  that library; persist documents together with the library's identity/version.
-- An `Instance` references an asset, a placement, and a paint choice. `Original`
-  preserves source colors. `Solid` colors the source's alpha coverage, allowing
-  the same glyph or suit to appear in different colors without copied geometry.
-- A `Document` contains the instance list. The first instance paints first;
-  later instances paint over it. There is no separate layer or depth field.
-- A `View` references a document and a bounding box in document coordinates.
-  Bounds define framing. The `clip` flag independently requests clipping.
+[`graphics.proto`](../crates/graphics2d-format/proto/graphics.proto) defines the
+portable contract. It contains no Rust-specific serialization conventions.
+Prost generates Rust transport types; pbjson generates their standard ProtoJSON
+readers and writers through Serde. Other languages use the same Protobuf schema
+with their own compatible generators and ProtoJSON implementations.
 
-Documents, instances, and placements support Serde serialization. Asset geometry
-is embedded in its Cargo library rather than repeated in stored instances.
+```text
+.proto -> generated transport types and JSON mappings
+                         |
+JSON definitions -> parse and validate -> resolve UUIDs -> runtime documents
+                         ^                                    |
+                         +------ export persistent UUIDs -----+
+```
 
-## Placement and coordinates
+- `graphics2d`: backend-independent runtime geometry, typed integer handles,
+  instances, styles, and views. Runtime documents do not implement serialization.
+- `graphics2d-format`: generated transport types, semantic validation, UUID
+  resolution, and document export. It needs neither a GUI nor filesystem access.
+- `graphics2d-egui`: SVG parsing, rasterization, texture caching, and composition.
+- `playing-card-assets`: shared SVG sources, JSON layouts and styles, deck
+  bindings, and build-time validation. It has no dependency on Klondike rules.
+
+Protobuf defines structure and field types. The loader additionally checks UUIDs,
+reference kinds, finite geometry, positive scale, handedness, color channels, and
+style units. Unknown JSON fields are rejected. Parsing a Protobuf message alone
+does not establish that it is a valid graphics document.
+
+## Resource identity
+
+Every library, SVG source, document, and style has a persistent UUID. The library
+manifest is the single UUID-to-path index. Paths locate content; they are not its
+identity. Keep a UUID when moving or editing a resource. Give an independent copy
+a new UUID.
+
+`Context::load` accepts manifest text and a caller-supplied content resolver. It
+checks duplicate definitions and resolves references once, independently of file
+order. Assets, styles, and documents receive separate typed integer handles.
+Rendering uses these handles and dense arrays, without UUID lookups.
+
+Handles belong to one immutable application context. Do not persist handles or
+carry them into another context. The context retains index-to-UUID metadata;
+`export_document` restores persistent references into generated transport types.
+The renderer and its documents must use the same context's resources.
+
+## Instances and placement
+
+A document contains an ordered instance list: first paints first. Each instance
+references an SVG asset, a placement, optional color, and optional outline style.
+An absent color preserves source colors. A supplied color uses source alpha
+coverage as a mask, so suit and rank artwork can be reused in other colors.
 
 `Placement::Simple` contains five numbers and a handedness sign:
 
 ```text
 position:     (x, y)
-x_direction:  (dx, dy), normalized
+x_direction:  (dx, dy), normalized during loading
 scale:        positive uniform scale
 handedness:   +1 or -1
-```
 
-Constructors and deserialization reject invalid coordinates, zero directions,
-nonpositive scales, and invalid handedness. Constructors normalize direction.
-Position locates the asset's local origin in document space.
-
-```text
 X = (dx, dy)
-Y = handedness × (-dy, dx)
-document_point = position + scale × (local_x × X + local_y × Y)
+Y = handedness * (-dy, dx)
+document_point = position + scale * (local_x * X + local_y * Y)
 ```
 
-Documents use X to the right and Y down. With X = (1, 0), positive handedness
-maps local Y downward. Negative handedness reflects across the local X axis.
-Using X = (-1, 0) with positive handedness rotates by 180 degrees.
-`matrix()` resolves placement to a 3×3 affine matrix using column vectors.
+Coordinates use X right and Y down. Positive handedness with X = (1, 0) maps
+local Y downward. Negative handedness reflects across local X. Positive
+handedness with X = (-1, 0) rotates by 180 degrees. Placement resolves to a 3x3
+affine matrix using column vectors. The Protobuf placement is a `oneof`, leaving
+room for a future affine variant when skew or nonuniform scale is needed.
 
-The egui renderer fits the view bounds inside the target rectangle with uniform
-scale and centers the result. Instance placement and view mapping compose as:
+A view's bounds control framing; its clip flag independently requests clipping.
+The renderer fits the bounds into the target with uniform scale and centers the
+result. Application hit regions remain separate from artwork and its outline.
 
-```text
-asset local coordinates -> document coordinates -> target coordinates
-                         instance placement        view mapping
+## Card definitions and editing
+
+The files in [`Assets/CardComponents`](../Assets/CardComponents) are:
+
+| File | Purpose |
+|---|---|
+| `library.json` | Library UUID, format version, and UUID-to-path resource index |
+| `deck.json` | Rank/suit-to-document bindings, back, and reusable suit/rank references |
+| `layouts/*.json` | Ordered instances and view bounds for each face and the back |
+| `styles/card.json` | Shared card outline color, width, and width unit |
+| `*.svg` | Shared backgrounds, suits, ranks, frame, and twelve court illustrations |
+
+Edit an instance's `simple.position`, `xDirection`, or `scale` to adjust layout.
+Change instance list order to change paint order. References use UUIDs, never
+filenames or runtime indexes. A two of spades has seven instances: background,
+four spades, and two digit-2 glyphs. The supplied layouts use 750 by 1050 units;
+the document view carries those bounds rather than requiring renderer constants.
+
+After edits, run from the repository root:
+
+```sh
+cargo run -p playing-card-assets --bin check-card-assets
+cargo run -p graphics2d-egui --example card_sheet -- target/card-sheet.png
 ```
 
-Interaction geometry belongs to the application. A card's hit region remains
-its full card rectangle, independently of the graphics inside it.
+The checker optionally accepts another library directory as its final argument.
+The card crate also validates bundled JSON and references during every relevant
+build. SVG parsing and supported rendering behavior are checked by renderer
+tests. The sheet writes a PNG for visual review; the application still uses SVGs.
 
-## Card library
-
-`Assets/CardComponents` is the `playing-card-assets` Cargo crate. Its package
-contains its Rust compositions, source SVGs, and license statement. It embeds
-assets with `include_str!`; consumers need no downloads or working-directory
-assumptions. Use a workspace path dependency now; the same crate boundary supports
-distribution with the required companion crates. No registry publication is
-required or performed by this project.
-
-`face(rank, suit)` creates a card document; `back()` creates a blue card back from
-the same shared background and spade. All card documents use 750×1050 units.
-`SAMPLE_LAYOUT.png` is the source reference for pip arrangements and court layout.
-Suit assets are available independently through `Suit::asset()`, and rank glyphs
-through `rank_asset()`.
-
-A two of spades has seven instances: one background, four instances of the
-spade, and two instances of the digit 2. Court cards retain twelve distinct
-illustrations, adding shared suit symbols, rank indexes, and a frame.
+The build embeds definitions and sources, with no working-directory or network
+requirements during play. `build.rs` derives the embedded source table from the
+manifest; there is no second manually maintained UUID/path table. Cargo packages
+include definitions, sources, and license text. No registry publication is required.
 
 ```rust
 use graphics2d_egui::Renderer;
-use playing_card_assets::{self as cards, Suit};
+use playing_card_assets::{Deck, Suit};
 
-let mut renderer = Renderer::new(cards::ASSETS);
-let document = cards::face(2, Suit::Spades).unwrap();
-// In the frame: renderer.begin_frame();
-// In an egui UI: renderer.paint(ui, cards::view(&document), target)?;
+let deck = Deck::bundled()?;
+let mut renderer = Renderer::new(deck.context.resources.clone());
+let view = deck.face_view(2, Suit::Spades).unwrap();
+// During an egui frame: renderer.begin_frame(); renderer.paint(ui, view, target)?;
 ```
 
-Keep one renderer per egui context. It parses each SVG once, rasterizes shared
-components at the requested pixel size, and draws transformed texture quads in
-instance order. Recoloring shares an alpha-mask texture; it does not duplicate
-the SVG or require another texture for each color. Rotation and reflection are
-applied to geometry, independently of cached textures. Raster sizes include
-display pixel density. Textures unused for two frames are released to bound
-cache growth during resizing. Individual textures are limited to the lesser of
-4096 pixels per side and the egui context's texture limit; exceeding this returns
-a rendering error. SVG text and external resources are not part of this asset
-library's contract; bundled components are paths.
+## Outlines and units
 
-For a windowless review of all 52 compositions and the back, run
-`cargo run -p graphics2d-egui --example card_sheet -- target/card-sheet.png`.
-This example uses the same document data with CPU vector rendering and writes a
-PNG contact sheet; it does not create replacement raster assets for the app.
+The shared card style currently uses a dark 1.25-logical-pixel outline. The
+renderer strokes the actual background path and clips the stroke to its interior,
+preserving the card boundary and hit region. Outline support currently requires
+a single closed SVG path without effects; unsupported sources return an error.
+The bundled card background meets that constraint.
 
-## Extension points
+- `WIDTH_UNIT_SOURCE`: width is measured in the SVG's source coordinates and
+  scales with instance placement and document zoom.
+- `WIDTH_UNIT_LOGICAL_PIXELS`: width is measured in host UI units, independently
+  of instance scale and document zoom. Egui calls these units points.
 
-Add an affine placement variant when nonuniform scale or skew has a concrete use.
-Both variants can resolve to the renderer's existing matrix path. A view can
-later become an instance target; that extension must define clipping, transform
-composition, and cycle rejection. Neither capability is implemented yet.
+Logical pixels are not physical display pixels or subpixels. Physical width is
+logical width multiplied by egui's `pixels_per_point`. Windows display scaling
+and browser page zoom affect that conversion with the rest of the UI. Do not
+apply device pixel ratio or operating-system scaling a second time. These units
+do not promise an exact physical size in millimetres.
+
+Keep one renderer per egui context. It parses each SVG once and caches textures
+by asset handle, pixel dimensions, and rendering treatment. Recoloring shares a
+mask texture; outlines have a separate texture so fill tint does not alter their
+color. Rotation and reflection apply to quad geometry. Textures unused for two
+frames are released. Each texture is limited to the lesser of 4096 pixels per
+side and egui's texture limit. Bundled SVGs are paths; SVG text and external
+resources are outside this asset library's contract.
+
+## Dependency decisions
+
+The contract is Protobuf (A); the Rust implementation uses Prost (B), Serde and
+serde_json (A), pbjson (B), and UUID (B). These ratings follow the
+[ecosystem resilience rule](RUST_RICH_APP.md#ecosystem-resilience).
+
+Pbjson has direct downstream use in [Apache DataFusion](https://github.com/apache/datafusion/blob/main/Cargo.toml)
+and [InfluxDB's core workspace](https://github.com/influxdata/influxdb3_core/blob/main/Cargo.toml).
+That establishes B under the downstream-use rule. Its small public profile alone
+is not evidence of ecosystem isolation. The compiler helper
+`protoc-bin-vendored` (B, build only) supplies a compiler without manual setup;
+[Apache DataFusion Java](https://github.com/apache/datafusion-java/blob/main/Cargo.toml)
+declares it directly. `PROTOC` can override its compiler path. The helper is a
+third-party packaging project, distinct from Google's compiler project. Cargo.lock
+pins the versions used here. These adoption observations were checked in October
+2026; reassess if upstream maintenance or compatibility changes.
+
+## Future extensions
+
+The same loader can consume bundled files, memory content, or editor-produced
+definitions. Document export uses the same generated schema. A future editor can
+therefore save ProtoJSON and put a compressed, Base64url-encoded document into a
+URL without replacing the renderer or resource identity model. That feature still
+needs a versioned envelope, input limits, and a way to supply referenced artwork.
+The editor and URL codec are not implemented.
+
+A future view-instance extension must define clipping, transform composition,
+and cycle rejection. The current flat instance list does not implement a scene
+graph.
