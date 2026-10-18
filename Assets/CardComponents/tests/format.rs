@@ -104,6 +104,16 @@ fn invalid_identity_references_geometry_styles_and_json_are_rejected() {
     }
     for (field, value) in [
         ("outlineWidth", json!(-1)),
+        ("outlineBlur", json!(-1)),
+        ("outlineBlur", json!("NaN")),
+        (
+            "shadow",
+            json!({"color":{"a":28},"offset":{"y":1},"blur":-1,"unit":"WIDTH_UNIT_LOGICAL_PIXELS"}),
+        ),
+        (
+            "shadow",
+            json!({"color":{"a":28},"offset":{"y":"Infinity"},"blur":1,"unit":"WIDTH_UNIT_LOGICAL_PIXELS"}),
+        ),
         ("outlineWidth", json!("Infinity")),
         ("outlineUnit", json!("WIDTH_UNIT_UNSPECIFIED")),
         ("outlineUnit", json!(77)),

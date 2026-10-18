@@ -53,8 +53,9 @@ The renderer and its documents must use the same context's resources.
 ## Instances and placement
 
 A document contains an ordered instance list: first paints first. Each instance
-references an SVG asset, a placement, optional color, and optional outline style.
-An absent color preserves source colors. A supplied color uses source alpha
+references an SVG asset, a placement, optional color, and optional vector style.
+An absent color uses the style's fill color when supplied, otherwise source colors.
+A supplied color uses source alpha
 coverage as a mask, so suit and rank artwork can be reused in other colors.
 
 `Placement::Simple` contains five numbers and a handedness sign:
@@ -89,7 +90,7 @@ The files in [`Assets/CardComponents`](../Assets/CardComponents) are:
 | `library.json` | Library UUID, format version, and UUID-to-path resource index |
 | `deck.json` | Rank/suit-to-document bindings, back, and reusable suit/rank references |
 | `layouts/*.json` | Ordered instances and view bounds for each face and the back |
-| `styles/card.json` | Shared card outline color, width, and width unit |
+| `styles/card.json` | Shared cream fill, softened outline, shadow, and units |
 | `styles/royal-frame.json` | Light gray inward court frame, measured in source units |
 | `*.svg` | Shared backgrounds, suits, ranks, frame, and twelve court illustrations |
 
@@ -128,9 +129,13 @@ let view = deck.face_view(2, Suit::Spades).unwrap();
 
 ## Outlines and units
 
-The shared card style currently uses a dark 1.25-logical-pixel outline. The
-renderer strokes the actual background path and clips the stroke to its interior,
-preserving the card boundary and hit region. Outline support currently requires
+The shared card style uses a slight cream fill (`#fffdf7`), a faint warm gray
+0.65-logical-pixel outline with 0.3 units of blur, and a subtle shadow offset
+downward by 2 logical pixels with 3 units of blur at about 24% opacity. Blur values are Gaussian
+standard deviations. The renderer strokes the actual background path and clips
+the stroke to its interior, preserving the underlying card boundary and hit region.
+Blur and shadows can extend beyond that boundary; explicit view clipping still
+applies. Outline support currently requires
 a single closed SVG path without effects; unsupported sources return an error.
 The bundled card background meets that constraint.
 
@@ -138,6 +143,12 @@ Court cards use `ROYAL_FRAME_BORDER_ONLY.svg` with a light gray, 6-source-unit
 inward outline. Their frame placements have unit scale, so the line is 6 document
 units wide. A transparent instance color suppresses the SVG fill while retaining
 the outline. Transparent fills do not allocate fill textures or emit fill quads.
+
+`fillColor` supplies the fill when an instance preserves original paint; explicit
+instance colors take precedence. `outlineBlur` uses the outline's width unit.
+A shadow has its own color, offset, blur, and unit. Logical-pixel shadow offsets
+follow screen axes; source-unit offsets scale with the instance and view.
+Blur is applied after clipping the inward outline, softening its outer edge.
 
 - `WIDTH_UNIT_SOURCE`: width is measured in the SVG's source coordinates and
   scales with instance placement and document zoom.
@@ -152,9 +163,18 @@ do not promise an exact physical size in millimetres.
 
 Keep one renderer per egui context. It parses each SVG once and caches textures
 by asset handle, pixel dimensions, and rendering treatment. Recoloring shares a
-mask texture; outlines have a separate texture so fill tint does not alter their
-color. Rotation and reflection apply to quad geometry. Textures unused for two
-frames are released. Each texture is limited to the lesser of 4096 pixels per
+mask texture; outlines and shadows have separate textures so fill tint does not
+alter their colors. Resvg applies Gaussian blur when creating a cached texture,
+with padding for the blur falloff. Cards of the same size and display scale share
+their shadow and outline textures across faces and frames. Pointer movement only
+changes quad placement. Rotation and reflection apply to quad geometry.
+
+During window resizing, `RasterScale` keeps texture resolution and effect scale
+fixed while presentation geometry follows the window. The card host waits for
+180 ms without a viewport size or display-scale change before rendering at the
+new resolution. This avoids rasterization and texture uploads on each resize event.
+
+Textures unused for two frames are released. Each texture is limited to the lesser of 4096 pixels per
 side and egui's texture limit. Bundled SVGs are paths; SVG text and external
 resources are outside this asset library's contract.
 

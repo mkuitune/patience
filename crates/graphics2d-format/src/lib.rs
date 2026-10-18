@@ -2,7 +2,7 @@
 
 use graphics2d::{
     AssetId, Bounds, Document, Handedness, Instance, OutlineStyle, Paint, Placement, Resources,
-    SimplePlacement, StyleId, SvgAsset, Vec2, View, WidthUnit,
+    Shadow, SimplePlacement, StyleId, SvgAsset, Vec2, View, WidthUnit,
 };
 use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
@@ -42,6 +42,21 @@ fn color(value: Option<proto::Color>) -> Result<[u8; 4], LoadError> {
 }
 fn json<T: serde::de::DeserializeOwned>(text: &str) -> Result<T, LoadError> {
     serde_json::from_str(text).map_err(|e| fail(e.to_string()))
+}
+
+fn width_unit(value: i32) -> Result<WidthUnit, LoadError> {
+    match proto::WidthUnit::try_from(value) {
+        Ok(proto::WidthUnit::Source) => Ok(WidthUnit::Source),
+        Ok(proto::WidthUnit::LogicalPixels) => Ok(WidthUnit::LogicalPixels),
+        _ => Err(fail("unknown style width unit")),
+    }
+}
+
+fn blur(value: f32) -> Result<f32, LoadError> {
+    if !value.is_finite() || value < 0.0 {
+        return Err(fail("blur must be finite and nonnegative"));
+    }
+    Ok(value)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -120,16 +135,30 @@ impl Context {
                     if !value.outline_width.is_finite() || value.outline_width <= 0.0 {
                         return Err(fail("outline width must be finite and positive"));
                     }
-                    let unit = match proto::WidthUnit::try_from(value.outline_unit) {
-                        Ok(proto::WidthUnit::Source) => WidthUnit::Source,
-                        Ok(proto::WidthUnit::LogicalPixels) => WidthUnit::LogicalPixels,
-                        _ => return Err(fail("unknown outline width unit")),
-                    };
+                    let unit = width_unit(value.outline_unit)?;
+                    let shadow = value
+                        .shadow
+                        .map(|s| {
+                            let offset = point(s.offset)?;
+                            if !offset.is_finite() {
+                                return Err(fail("shadow offset must be finite"));
+                            }
+                            Ok(Shadow {
+                                color: color(s.color)?,
+                                offset,
+                                blur: blur(s.blur)?,
+                                unit: width_unit(s.unit)?,
+                            })
+                        })
+                        .transpose()?;
                     let handle = StyleId(resources.styles.len());
                     resources.styles.push(OutlineStyle {
                         color: color(value.outline_color)?,
                         width: value.outline_width,
                         unit,
+                        fill_color: value.fill_color.map(|c| color(Some(c))).transpose()?,
+                        blur: blur(value.outline_blur)?,
+                        shadow,
                     });
                     style_uuids.push(id);
                     ResourceId::Style(handle)

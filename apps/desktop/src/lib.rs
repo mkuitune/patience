@@ -2,6 +2,7 @@ mod app;
 mod cards;
 mod language;
 mod platform;
+mod toolbar;
 
 pub use app::PatienceApp;
 

@@ -33,12 +33,23 @@ enum WidthUnit {
   WIDTH_UNIT_LOGICAL_PIXELS = 2;
 }
 
+message Shadow {
+  Color color = 1;
+  Point offset = 2;
+  float blur = 3;
+  WidthUnit unit = 4;
+}
+
 message Style {
   string uuid = 1;
   Color outline_color = 2;
   float outline_width = 3;
   WidthUnit outline_unit = 4;
   // Outlines follow the source path and are clipped to its interior.
+  Color fill_color = 5;
+  // Gaussian standard deviation, in the same units as outline_width.
+  float outline_blur = 6;
+  Shadow shadow = 7;
 }
 
 message SvgSource { Bounds bounds = 1; }

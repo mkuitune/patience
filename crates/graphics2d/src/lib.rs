@@ -268,6 +268,17 @@ pub struct OutlineStyle {
     pub color: [u8; 4],
     pub width: f32,
     pub unit: WidthUnit,
+    pub fill_color: Option<[u8; 4]>,
+    pub blur: f32,
+    pub shadow: Option<Shadow>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Shadow {
+    pub color: [u8; 4],
+    pub offset: Vec2,
+    pub blur: f32,
+    pub unit: WidthUnit,
 }
 
 /// A renderer and its documents must use resources from the same application context.

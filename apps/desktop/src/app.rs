@@ -1,10 +1,40 @@
 use crate::cards::Cards;
 use crate::language::{self, Key, LANGUAGES, Language};
 use crate::platform::Platform;
-use eframe::egui::{self, Align2, Color32, FontId, Rect, Sense, Stroke, StrokeKind};
+use crate::toolbar::{self, Icon};
+use eframe::egui::{self, Color32, FontId, Rect, Sense, Stroke, StrokeKind};
 use patience_core::{Card, Command, Destination, Engine, Game, Source, StateError};
 
 const TABLE: Color32 = Color32::from_rgb(20, 91, 61);
+const ROW_GAP: f32 = 28.0;
+const BOARD_VERTICAL_PADDING: f32 = 16.0;
+const FACE_UP_STEP: f32 = 0.18;
+const FULL_COLUMN_HEIGHT_FACTOR: f32 = 1.4 + 12.0 * FACE_UP_STEP;
+
+fn tableau_height_factor(game: &Game) -> f32 {
+    game.tableau()
+        .iter()
+        .map(|pile| {
+            pile.hidden() as f32 * 0.18
+                + pile.cards().len().saturating_sub(pile.hidden() + 1) as f32 * FACE_UP_STEP
+                + 1.4
+        })
+        .fold(1.4, f32::max)
+}
+
+fn board_widths(available: egui::Vec2, expanded: bool, game: &Game) -> (f32, f32, f32) {
+    let width = available.x.max(if expanded { 91.0 } else { 650.0 });
+    let width_limit = ((width - 84.0) / 7.0).max(1.0);
+    let card = if expanded {
+        let column_height = tableau_height_factor(game).max(FULL_COLUMN_HEIGHT_FACTOR);
+        let height_limit =
+            ((available.y - ROW_GAP - BOARD_VERTICAL_PADDING) / (1.4 + column_height)).max(1.0);
+        width_limit.min(height_limit)
+    } else {
+        width_limit.clamp(74.0, 108.0)
+    };
+    (width, card, card * 7.0 + 84.0)
+}
 
 pub struct PatienceApp {
     cards: Cards,
@@ -16,6 +46,8 @@ pub struct PatienceApp {
     returning: Option<ReturnAnimation>,
     help: bool,
     teach: bool,
+    expanded_layout: bool,
+    toolbar_height: f32,
     rejected: Option<RejectedDrop>,
     message_is_rule: bool,
     message: String,
@@ -109,8 +141,10 @@ impl PatienceApp {
             selected: None,
             drag: None,
             returning: None,
-            help: true,
+            help: false,
             teach: false,
+            expanded_layout: true,
+            toolbar_height: toolbar::BUTTON_HEIGHT + 24.0,
             rejected: None,
             message_is_rule: false,
             message: String::new(),
@@ -237,11 +271,14 @@ impl PatienceApp {
         }
     }
 
-    fn board(&mut self, ui: &mut egui::Ui) {
-        let width = ui.available_width().max(650.0);
-        let w = ((width - 84.0) / 7.0).clamp(74.0, 108.0);
+    fn board(&mut self, ui: &mut egui::Ui, viewport_height: f32) {
+        let (width, w, playing_width) = board_widths(
+            egui::vec2(ui.available_width(), viewport_height),
+            self.expanded_layout,
+            self.engine.game(),
+        );
         let h = w * 1.4;
-        let front_step = w * 0.36;
+        let front_step = w * FACE_UP_STEP;
         let back_step = w * 0.18;
         let game = self.engine.game();
         let max_height = game
@@ -253,9 +290,11 @@ impl PatienceApp {
                     + h
             })
             .fold(h, f32::max);
-        let (board, _) =
-            ui.allocate_exact_size(egui::vec2(width, h + 58.0 + max_height), Sense::hover());
-        let origin = board.min + egui::vec2((width - (w * 7.0 + 84.0)) * 0.5, 8.0);
+        let (board, _) = ui.allocate_exact_size(
+            egui::vec2(width, h + ROW_GAP + BOARD_VERTICAL_PADDING + max_height),
+            Sense::hover(),
+        );
+        let origin = board.min + egui::vec2((width - playing_width) * 0.5, 8.0);
         let at = |column: usize, y: f32| {
             Rect::from_min_size(
                 origin + egui::vec2(column as f32 * (w + 14.0), y),
@@ -318,7 +357,7 @@ impl PatienceApp {
             .skip(game.waste().len() - visible)
             .enumerate()
         {
-            let target = waste.translate(egui::vec2(index as f32 * w * 0.48, 0.0));
+            let target = waste.translate(egui::vec2(index as f32 * w * 0.24, 0.0));
             let top = index + 1 == visible;
             cards_to_paint.push((
                 target,
@@ -342,6 +381,7 @@ impl PatienceApp {
         for suit in 0..4 {
             let target = at(3 + suit, 0.0);
             slot(ui, target, "");
+            self.cards.paint_rank_marker(ui, target, 1, 42);
             if let Some(top) = game.foundation(suit) {
                 cards_to_paint.push((
                     target,
@@ -372,8 +412,9 @@ impl PatienceApp {
             targets.push((Destination::Foundation(suit), response, target));
         }
         for (column, pile) in game.tableau().iter().enumerate() {
-            let empty = at(column, h + 42.0);
-            slot(ui, empty, "K");
+            let empty = at(column, h + ROW_GAP);
+            slot(ui, empty, "");
+            self.cards.paint_rank_marker(ui, empty, 13, 42);
             if pile.cards().is_empty() {
                 let response = ui.interact(empty, ui.id().with(("empty", column)), Sense::click());
                 if response.clicked() {
@@ -381,7 +422,7 @@ impl PatienceApp {
                 }
                 targets.push((Destination::Tableau(column), response, empty));
             }
-            let mut y = h + 42.0;
+            let mut y = h + ROW_GAP;
             for (index, &value) in pile.cards().iter().enumerate() {
                 let hidden = index < pile.hidden();
                 let source = Source::Tableau { column, index };
@@ -445,7 +486,7 @@ impl PatienceApp {
                 Source::Tableau { column, .. } => {
                     let last = cards_to_paint.iter().rev().find(|(_, _, _, source)|
                         matches!(source, Some(Source::Tableau { column: c, .. }) if *c == column));
-                    last.map(|(rect, _, _, _)| at(column, h + 42.0).union(*rect))
+                    last.map(|(rect, _, _, _)| at(column, h + ROW_GAP).union(*rect))
                 }
                 _ => return_home,
             };
@@ -528,7 +569,7 @@ impl PatienceApp {
             };
             ui.painter().rect_stroke(
                 rect.expand(3.0),
-                5.0,
+                crate::cards::corner_radius(*rect) + 3.0,
                 Stroke::new(3.0, color),
                 StrokeKind::Outside,
             );
@@ -560,7 +601,7 @@ impl PatienceApp {
                 {
                     ui.painter().rect_stroke(
                         rect.expand(3.0),
-                        5.0,
+                        crate::cards::corner_radius(*rect) + 3.0,
                         Stroke::new(
                             3.0,
                             Color32::from_rgba_unmultiplied(
@@ -630,7 +671,7 @@ impl PatienceApp {
 
 impl eframe::App for PatienceApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.cards.begin_frame();
+        self.cards.begin_frame(ctx);
         if let Some(fragment) = self.platform.changed_fragment() {
             match Game::decode(&fragment) {
                 Ok(game) => {
@@ -667,105 +708,167 @@ impl eframe::App for PatienceApp {
         {
             self.undo();
         }
-        egui::TopBottomPanel::top("toolbar").show(ctx, |ui| {
-            let row_height = (ui.text_style_height(&egui::TextStyle::Button)
-                + 2.0 * ui.spacing().button_padding.y)
-                .max(36.0);
-            ui.spacing_mut().interact_size.y = row_height;
-            ui.allocate_ui_with_layout(
-                egui::vec2(ui.available_width(), row_height),
-                egui::Layout::right_to_left(egui::Align::Center),
-                |ui| {
-                    let response = ui
-                        .add(egui::Button::new("").min_size(egui::vec2(38.0, row_height)))
-                        .on_hover_text(self.language.text(Key::Settings));
-                    response.widget_info(|| {
-                        egui::WidgetInfo::labeled(
-                            egui::WidgetType::Button,
-                            true,
-                            self.language.text(Key::Settings),
-                        )
-                    });
-                    gear(
-                        ui.painter(),
-                        response.rect.center(),
-                        ui.visuals().text_color(),
-                    );
-                    if response.clicked() {
-                        self.settings_open = true;
-                        self.drag = None;
-                        self.selected = None;
-                    }
-                    ui.with_layout(
-                        egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true),
+        let toolbar_panel = egui::TopBottomPanel::top("toolbar")
+            .show_separator_line(false)
+            .frame(
+                egui::Frame::new()
+                    .fill(TABLE)
+                    .inner_margin(egui::Margin::symmetric(12, 12)),
+            )
+            .show(ctx, |ui| {
+                ui.spacing_mut().item_spacing = egui::vec2(10.0, 10.0);
+                let (_, _, playing_width) = board_widths(
+                    egui::vec2(
+                        ui.available_width(),
+                        (ctx.content_rect().height() - self.toolbar_height - 16.0).max(0.0),
+                    ),
+                    self.expanded_layout,
+                    self.engine.game(),
+                );
+                // Keep controls usable when a short viewport makes the fitted cards narrower.
+                let width = playing_width
+                    .max(if self.expanded_layout { 450.0 } else { 0.0 })
+                    .min(ui.available_width());
+                let origin =
+                    ui.cursor().min + egui::vec2((ui.available_width() - width) * 0.5, 0.0);
+                let rect = Rect::from_min_size(origin, egui::vec2(width, toolbar::BUTTON_HEIGHT));
+                ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(ui.available_width(), toolbar::BUTTON_HEIGHT),
+                        egui::Layout::right_to_left(egui::Align::Center),
                         |ui| {
-                            if ui.button(self.language.text(Key::NewGame)).clicked() {
-                                self.engine = Engine::new(Game::deal(rand::random()));
-                                self.waste_fan_count = 0;
-                                self.undo_waste_fan_count = None;
-                                self.rejected = None;
-                                self.selected = None;
-                                self.drag = None;
-                                self.returning = None;
-                                self.load_error = None;
-                                self.message.clear();
-                                self.save_url();
-                            }
-                            let undo = ui.add_enabled(
-                                self.load_error.is_none() && self.engine.can_undo(),
-                                egui::Button::new("").min_size(egui::vec2(38.0, row_height)),
-                            );
-                            let ink = if undo.enabled() {
-                                ui.visuals().text_color()
-                            } else {
-                                ui.visuals().weak_text_color()
-                            };
-                            let center = undo.rect.center();
-                            ui.painter().line_segment(
-                                [center + egui::vec2(8.0, 0.0), center - egui::vec2(8.0, 0.0)],
-                                Stroke::new(1.6, ink),
-                            );
-                            ui.painter().add(egui::Shape::line(
-                                vec![
-                                    center + egui::vec2(-2.0, -6.0),
-                                    center + egui::vec2(-8.0, 0.0),
-                                    center + egui::vec2(-2.0, 6.0),
-                                ],
-                                Stroke::new(1.6, ink),
-                            ));
-                            undo.widget_info(|| {
-                                egui::WidgetInfo::labeled(
-                                    egui::WidgetType::Button,
-                                    self.engine.can_undo(),
-                                    self.language.text(Key::Undo),
-                                )
-                            });
-                            let undo = if self.help {
-                                undo.on_hover_text(self.language.text(Key::Undo))
-                            } else {
-                                undo
-                            };
-                            if undo.clicked() {
-                                self.undo();
-                            }
-                            if ui
-                                .checkbox(&mut self.help, self.language.text(Key::Help))
-                                .changed()
-                                && self.message_is_rule
+                            if toolbar::button(
+                                ui,
+                                self.language.text(Key::Settings),
+                                Icon::Settings,
+                                false,
+                                None,
+                                true,
+                            )
+                            .on_hover_text(self.language.text(Key::Settings))
+                            .clicked()
                             {
-                                self.message.clear();
+                                self.settings_open = true;
+                                self.drag = None;
+                                self.selected = None;
                             }
-                            ui.checkbox(&mut self.teach, self.language.text(Key::Teach));
-                            if self.engine.game().is_won() {
-                                ui.strong(self.language.text(Key::Won));
-                            }
+                            ui.with_layout(
+                                egui::Layout::left_to_right(egui::Align::Center)
+                                    .with_main_wrap(true),
+                                |ui| {
+                                    if toolbar::button(
+                                        ui,
+                                        self.language.text(Key::NewGame),
+                                        Icon::NewGame,
+                                        true,
+                                        None,
+                                        true,
+                                    )
+                                    .clicked()
+                                    {
+                                        self.engine = Engine::new(Game::deal(rand::random()));
+                                        self.waste_fan_count = 0;
+                                        self.undo_waste_fan_count = None;
+                                        self.rejected = None;
+                                        self.selected = None;
+                                        self.drag = None;
+                                        self.returning = None;
+                                        self.load_error = None;
+                                        self.message.clear();
+                                        self.save_url();
+                                    }
+                                    let undo = toolbar::button(
+                                        ui,
+                                        self.language.text(Key::Undo),
+                                        Icon::Undo,
+                                        false,
+                                        None,
+                                        self.load_error.is_none() && self.engine.can_undo(),
+                                    );
+                                    let undo = if self.help {
+                                        undo.on_hover_text(self.language.text(Key::Undo))
+                                    } else {
+                                        undo
+                                    };
+                                    if undo.clicked() {
+                                        self.undo();
+                                    }
+                                    if toolbar::button(
+                                        ui,
+                                        self.language.text(Key::Help),
+                                        Icon::Help,
+                                        true,
+                                        Some(self.help),
+                                        true,
+                                    )
+                                    .clicked()
+                                    {
+                                        self.help = !self.help;
+                                        if self.message_is_rule {
+                                            self.message.clear();
+                                        }
+                                    }
+                                    if toolbar::button(
+                                        ui,
+                                        self.language.text(Key::Teach),
+                                        Icon::Teach,
+                                        true,
+                                        Some(self.teach),
+                                        true,
+                                    )
+                                    .clicked()
+                                    {
+                                        self.teach = !self.teach;
+                                    }
+                                    let layout_label =
+                                        self.language.text(if self.expanded_layout {
+                                            Key::CenterLayout
+                                        } else {
+                                            Key::ExpandLayout
+                                        });
+                                    if toolbar::button(
+                                        ui,
+                                        layout_label,
+                                        if self.expanded_layout {
+                                            Icon::Collapse
+                                        } else {
+                                            Icon::Expand
+                                        },
+                                        false,
+                                        Some(self.expanded_layout),
+                                        true,
+                                    )
+                                    .on_hover_text(layout_label)
+                                    .clicked()
+                                    {
+                                        self.expanded_layout = !self.expanded_layout;
+                                        self.selected = None;
+                                        self.drag = None;
+                                        self.returning = None;
+                                        self.rejected = None;
+                                        ctx.request_repaint();
+                                    }
+                                    if self.engine.game().is_won() {
+                                        ui.strong(self.language.text(Key::Won));
+                                    }
+                                },
+                            );
                         },
                     );
-                },
-            );
-        });
+                });
+            });
+        let toolbar_height = toolbar_panel.response.rect.height();
+        if (toolbar_height - self.toolbar_height).abs() > 0.1 {
+            self.toolbar_height = toolbar_height;
+            ctx.request_repaint();
+        }
         egui::CentralPanel::default()
-            .frame(egui::Frame::new().fill(TABLE).inner_margin(12.0))
+            .frame(egui::Frame::new().fill(TABLE).inner_margin(egui::Margin {
+                left: 12,
+                right: 12,
+                top: 4,
+                bottom: 12,
+            }))
             .show(ctx, |ui| {
                 if !self.message.is_empty() && !self.message_is_rule {
                     ui.colored_label(Color32::WHITE, &self.message);
@@ -777,45 +880,67 @@ impl eframe::App for PatienceApp {
                     ui.colored_label(Color32::WHITE, self.language.state_error(*error));
                     ui.label(self.language.text(Key::InvalidLinkHelp));
                 } else {
+                    let viewport_height = ui.available_height();
                     egui::ScrollArea::both()
                         .auto_shrink([false, false])
-                        .show(ui, |ui| self.board(ui));
+                        .show(ui, |ui| self.board(ui, viewport_height));
                 }
             });
         if self.settings_open {
-            let modal = egui::Modal::new(egui::Id::new("settings")).show(ctx, |ui| {
-                ui.set_width(260.0_f32.min(ui.ctx().content_rect().width() - 48.0));
-                ui.heading(self.language.text(Key::Settings));
-                ui.separator();
-                ui.label(self.language.text(Key::Language));
-                egui::ComboBox::from_id_salt("language")
-                    .selected_text(self.language.name)
-                    .show_ui(ui, |ui| {
-                        for language in LANGUAGES {
-                            if ui
-                                .selectable_label(
-                                    self.language.code == language.code,
-                                    language.name,
-                                )
-                                .clicked()
-                            {
-                                self.language = language;
-                                if self.message_is_rule {
-                                    self.message.clear();
-                                }
-                                if let Err(error) = self.platform.save_language(language.code) {
-                                    self.message_is_rule = false;
-                                    self.message =
-                                        format!("{}: {error}", language.text(Key::SaveError));
+            let modal = egui::Modal::new(egui::Id::new("settings"))
+                .frame(toolbar::panel_frame())
+                .backdrop_color(Color32::from_black_alpha(45))
+                .show(ctx, |ui| {
+                    toolbar::settings_style(ui);
+                    ui.set_width(
+                        300.0_f32
+                            .min(ui.ctx().content_rect().width() - 72.0)
+                            .max(160.0),
+                    );
+                    ui.heading(egui::RichText::new(self.language.text(Key::Settings)).size(23.0));
+                    ui.add_space(12.0);
+                    ui.label(
+                        egui::RichText::new(self.language.text(Key::Language))
+                            .color(Color32::from_white_alpha(165)),
+                    );
+                    egui::ComboBox::from_id_salt("language")
+                        .width(ui.available_width())
+                        .selected_text(self.language.name)
+                        .show_ui(ui, |ui| {
+                            for language in LANGUAGES {
+                                if ui
+                                    .selectable_label(
+                                        self.language.code == language.code,
+                                        language.name,
+                                    )
+                                    .clicked()
+                                {
+                                    self.language = language;
+                                    if self.message_is_rule {
+                                        self.message.clear();
+                                    }
+                                    if let Err(error) = self.platform.save_language(language.code) {
+                                        self.message_is_rule = false;
+                                        self.message =
+                                            format!("{}: {error}", language.text(Key::SaveError));
+                                    }
                                 }
                             }
-                        }
-                    });
-                ui.add_space(12.0);
-                if ui.button(self.language.text(Key::Close)).clicked() {
-                    ui.close();
-                }
-            });
+                        });
+                    ui.add_space(12.0);
+                    if toolbar::button(
+                        ui,
+                        self.language.text(Key::Close),
+                        Icon::Close,
+                        true,
+                        None,
+                        true,
+                    )
+                    .clicked()
+                    {
+                        ui.close();
+                    }
+                });
             if modal.should_close() {
                 self.settings_open = false;
             }
@@ -823,33 +948,17 @@ impl eframe::App for PatienceApp {
     }
 }
 
-fn gear(painter: &egui::Painter, center: egui::Pos2, ink: Color32) {
-    let points = (0..64)
-        .map(|index| {
-            let angle = index as f32 * std::f32::consts::TAU / 64.0;
-            let radius = if matches!(index % 8, 2..=5) {
-                11.0
-            } else {
-                8.3
-            };
-            center + egui::vec2(angle.cos(), angle.sin()) * radius
-        })
-        .collect();
-    painter.add(egui::Shape::closed_line(points, Stroke::new(1.6, ink)));
-    painter.circle_stroke(center, 3.5, Stroke::new(1.6, ink));
-}
-
 fn slot(ui: &egui::Ui, rect: Rect, label: &str) {
     ui.painter().rect(
         rect,
-        5.0,
+        crate::cards::corner_radius(rect),
         Color32::from_black_alpha(22),
         Stroke::new(1.0, Color32::from_white_alpha(90)),
         StrokeKind::Inside,
     );
     ui.painter().text(
         rect.center(),
-        Align2::CENTER_CENTER,
+        egui::Align2::CENTER_CENTER,
         label,
         FontId::proportional(28.0),
         Color32::from_white_alpha(130),
@@ -930,6 +1039,28 @@ fn move_arrow(painter: &egui::Painter, from: Rect, to: Rect, over_cards: bool) {
 mod tests {
     use super::*;
 
+    #[test]
+    fn expanded_layout_reserves_thirteen_cards_and_fits_taller_columns() {
+        let mut game = Game::deal(7);
+        for _ in 0..120 {
+            for size in [
+                egui::vec2(1800.0, 800.0),
+                egui::vec2(800.0, 500.0),
+                egui::vec2(360.0, 650.0),
+            ] {
+                let (_, width, playing_width) = board_widths(size, true, &game);
+                assert!(playing_width <= size.x + 0.01);
+                let column_height = tableau_height_factor(&game).max(FULL_COLUMN_HEIGHT_FACTOR);
+                let height = (1.4 + column_height) * width + ROW_GAP + BOARD_VERTICAL_PADDING;
+                assert!(height <= size.y + 0.01, "{height} exceeds {}", size.y);
+            }
+            let Some(command) = game.legal_moves().into_iter().next() else {
+                break;
+            };
+            game.apply(command).unwrap();
+        }
+    }
+
     fn app(game: Game, ctx: &egui::Context) -> PatienceApp {
         PatienceApp {
             cards: Cards::new(),
@@ -941,6 +1072,8 @@ mod tests {
             returning: None,
             help: true,
             teach: false,
+            expanded_layout: false,
+            toolbar_height: toolbar::BUTTON_HEIGHT + 24.0,
             rejected: None,
             message_is_rule: false,
             message: String::new(),
@@ -968,7 +1101,10 @@ mod tests {
         ctx.run(input, |ctx| {
             egui::CentralPanel::default()
                 .frame(egui::Frame::NONE)
-                .show(ctx, |ui| app.board(ui));
+                .show(ctx, |ui| {
+                    let height = ui.available_height();
+                    app.board(ui, height);
+                });
         })
     }
 

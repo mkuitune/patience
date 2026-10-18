@@ -1,11 +1,19 @@
 {
   "uuid": "bab8b83f-f4a9-4781-833c-d8906a1be89b",
   "outlineColor": {
-    "r": 45,
-    "g": 45,
-    "b": 45,
-    "a": 255
+    "r": 125,
+    "g": 118,
+    "b": 105,
+    "a": 72
   },
-  "outlineWidth": 1.25,
-  "outlineUnit": "WIDTH_UNIT_LOGICAL_PIXELS"
+  "outlineWidth": 0.65,
+  "outlineUnit": "WIDTH_UNIT_LOGICAL_PIXELS",
+  "fillColor": { "r": 255, "g": 253, "b": 247, "a": 255 },
+  "outlineBlur": 0.3,
+  "shadow": {
+    "color": { "r": 30, "g": 24, "b": 18, "a": 60 },
+    "offset": { "x": 0, "y": 2 },
+    "blur": 3,
+    "unit": "WIDTH_UNIT_LOGICAL_PIXELS"
+  }
 }

@@ -43,8 +43,9 @@
       fail('This game requires WebGPU. Use an up-to-date browser with WebGPU support.', false);
     } else {
       try {
-        const engine = await import('./engines/v1/patience_app.js');
-        await engine.default();
+        const assetVersion = 'BUILD_ASSET_VERSION';
+        const engine = await import(`./engines/v1/patience_app.js?v=${assetVersion}`);
+        await engine.default({ module_or_path: new URL(`./engines/v1/patience_app_bg.wasm?v=${assetVersion}`, import.meta.url) });
         await engine.start(document.getElementById('game'));
         status.remove();
         window.addEventListener('hashchange', () => {
