@@ -1,6 +1,6 @@
 # Patience
 
-Klondike (pasianssi) in Rust, with a shared headless engine and an `egui`/`wgpu`
+Solitaire in Rust, with a shared headless engine and an `egui`/`wgpu`
 interface for desktop and browser. The browser keeps the complete board in the URL
 so a bookmark restores the position without an account or database.
 
@@ -13,12 +13,12 @@ a card and clicking its destination. Double-click a card to send it to its found
 Use the back-arrow button or Ctrl+Z (Command+Z on macOS) to undo the last move only.
 Escape cancels selection or dragging.
 
-**Help** is on initially: green outlines show legal destinations, and red outlines
-and tips explain rejected moves. With Help off, an illegal drop briefly flashes
-the destination red after release while the cards return to their pile. **Teach**
-is off initially: enable it to show curved arrows for useful legal card moves and a
-click/tap marker on the stock for drawing or recycling. The toggles are independent
-and affect presentation only; they reset on reload.
+**Help** opens a guide showing all 52 cards, the game's goal, and the rules.
+**Teach** is off initially. Enable it for curved move arrows, a click/tap marker
+on the stock, green outlines for legal destinations, and red outlines with rule
+explanations for illegal moves. With Teach off, an illegal drop briefly flashes
+the destination red after release while the cards return to their pile.
+Teach affects presentation only and resets on reload.
 Teach omits moving an entire king-led column to an empty column, since that only
 relocates the same stack. It also omits taking aces back out of foundations.
 Those moves remain legal to play.
@@ -48,15 +48,14 @@ cargo install wasm-pack --locked
 
 From the repository root:
 
-```sh
-wasm-pack build apps/desktop --target web --out-dir ../../dist/engines/v1 --out-name patience_app --release --no-pack
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-web.ps1
 ```
 
-Copy `web/index.html` to `dist/index.html`, then serve `dist` over HTTP. For example,
-on Windows with Python installed:
+The script builds the engine and writes the loader to `dist/index.html`.
+Serve `dist` over HTTP. For example, on Windows with Python installed:
 
 ```powershell
-Copy-Item web/index.html dist/index.html
 py -3 -m http.server 8080 --bind 127.0.0.1 --directory dist
 ```
 
@@ -64,8 +63,22 @@ Open <http://127.0.0.1:8080> with a WebGPU-capable browser. The web build requir
 WebGPU and has no WebGL fallback. Phone and other LAN clients need trusted HTTPS;
 plain HTTP on a LAN IP address does not enable WebGPU. Opening the HTML file
 directly does not load the WebAssembly application.
-`scripts/build-web.ps1` combines the build and copy steps where PowerShell permits
-local scripts; pass `-Dev` for a debug build.
+Pass `-Dev` to the build script for a debug build.
+
+For home-network HTTPS testing, `scripts/serve-web.py --bind <PC-LAN-IP>` serves
+the game on port 8443 and the public development CA certificate on port 8081 at
+`/patience-dev-ca.cer`. Run it with Python 3. It expects `server.pem`,
+`server-key.pem`, and `patience-dev-ca.cer` in the ignored `.tmp/local-https/`
+directory. Generate the server certificate with mkcert for the PC's LAN IP and
+export its public CA certificate in DER format as `patience-dev-ca.cer`.
+Keep both private keys outside `dist`; the certificate endpoint serves only the
+public CA certificate. Allow these ports only from the private local subnet.
+
+On iPhone, download the certificate in Safari, install it through Settings >
+Profile Downloaded, then enable its trust in Settings > General > About >
+Certificate Trust Settings. Open `https://<PC-LAN-IP>:8443/` in Safari.
+Use iOS 26 or later for WebGPU. The certificate's IP address must match the URL;
+regenerate the server certificate if the PC's LAN IP changes.
 
 Deploy the contents of `dist` to static hosting. Preserve released engine bundles
 under their versioned `engines/` directories; future incompatible engine versions
@@ -82,7 +95,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo run -p playing-card-assets --bin check-card-assets
 ```
 
-See [Klondike architecture and URL format](doc/KLONDIKE.md) and the
+See [Solitaire architecture and URL format](doc/SOLITAIRE.md) and the
 [rich Rust application guide](doc/RUST_RICH_APP.md).
 Card layouts and styles are schema-validated JSON; see the
 [composable graphics guide](doc/COMPOSABLE_GRAPHICS.md) for editing and reuse.

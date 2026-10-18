@@ -128,7 +128,7 @@ pub fn settings_style(ui: &mut egui::Ui) {
     visuals.widgets.open.bg_fill = Color32::from_rgb(48, 80, 65);
 }
 
-fn paint_icon(p: &egui::Painter, c: egui::Pos2, icon: Icon, ink: Color32) {
+pub(crate) fn paint_icon(p: &egui::Painter, c: egui::Pos2, icon: Icon, ink: Color32) {
     let stroke = Stroke::new(1.5, ink);
     let at = |x, y| c + egui::vec2(x, y);
     let line = |points: &[(f32, f32)]| {

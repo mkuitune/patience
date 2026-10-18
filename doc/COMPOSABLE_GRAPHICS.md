@@ -26,7 +26,7 @@ JSON definitions -> parse and validate -> resolve UUIDs -> runtime documents
   resolution, and document export. It needs neither a GUI nor filesystem access.
 - `graphics2d-egui`: SVG parsing, rasterization, texture caching, and composition.
 - `playing-card-assets`: shared SVG sources, JSON layouts and styles, deck
-  bindings, and build-time validation. It has no dependency on Klondike rules.
+  bindings, and build-time validation. It has no dependency on Solitaire rules.
 
 Protobuf defines structure and field types. The loader additionally checks UUIDs,
 reference kinds, finite geometry, positive scale, handedness, color channels, and

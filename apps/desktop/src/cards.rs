@@ -49,17 +49,34 @@ impl Cards {
     }
 
     pub fn paint(&mut self, ui: &egui::Ui, rect: Rect, card: Option<Card>, selected: bool) {
+        self.paint_artwork(
+            ui,
+            rect,
+            card.map(|card| (card.rank(), card.suit())),
+            selected,
+        );
+    }
+
+    pub fn paint_rank(&mut self, ui: &egui::Ui, rect: Rect, rank: u8, suit: Suit) {
+        self.paint_artwork(ui, rect, Some((rank, suit)), false);
+    }
+
+    fn paint_artwork(
+        &mut self,
+        ui: &egui::Ui,
+        rect: Rect,
+        card: Option<(u8, Suit)>,
+        selected: bool,
+    ) {
         let view = match card {
-            Some(card) => {
-                let suit = match card.suit() {
+            Some((rank, suit)) => {
+                let suit = match suit {
                     Suit::Clubs => deck::Suit::Clubs,
                     Suit::Diamonds => deck::Suit::Diamonds,
                     Suit::Hearts => deck::Suit::Hearts,
                     Suit::Spades => deck::Suit::Spades,
                 };
-                self.deck
-                    .face_view(card.rank(), suit)
-                    .expect("valid card rank")
+                self.deck.face_view(rank, suit).expect("valid card rank")
             }
             None => self.deck.back_view(),
         };

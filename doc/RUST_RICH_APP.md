@@ -370,7 +370,7 @@ The detailed update and composition model remains open; use these cases to refin
 it before prescribing a common implementation.
 
 Cover four application archetypes: 2D games, 3D games, desktop applications led by
-2D layout, and desktop applications containing 3D views. Use Klondike, vector
+2D layout, and desktop applications containing 3D views. Use Solitaire, vector
 drawing, layered pixel drawing, a rich 3D editor, and both static-state and
 continuous-action 2D/3D games as concrete examples.
 

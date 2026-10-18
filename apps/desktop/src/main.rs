@@ -8,9 +8,9 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "Klondike",
+        "Solitaire",
         options,
-        Box::new(|cc| Ok(Box::new(patience_app::PatienceApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(patience_app::PatienceApp::new(cc, false)))),
     )
 }
 

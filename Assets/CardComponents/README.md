@@ -8,7 +8,7 @@ The filename `QUEEEN_DIAMOND.svg` is retained as supplied.
 The library exports shared suit and rank assets, twelve separate court
 illustrations, and JSON compositions for all 52 faces. The back is composed
 from the shared card background and spade, without another downloaded design.
-No asset depends on the Klondike application or its rules.
+No asset depends on the Solitaire application or its rules.
 
 See [the composition model](../../doc/COMPOSABLE_GRAPHICS.md) for placement,
 mirroring, serialization, rendering, and reuse. The Cargo package includes SVGs

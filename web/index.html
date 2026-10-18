@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#145b3d">
-  <title>Klondike</title>
+  <title>Solitaire</title>
   <style>
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #145b3d; color: #fff; font: 16px system-ui, sans-serif; }
     canvas { display: block; width: 100%; height: 100%; touch-action: none; }
@@ -14,8 +14,8 @@
   </style>
 </head>
 <body>
-  <canvas id="game" aria-label="Klondike game board"></canvas>
-  <div id="status" role="status"><p>Loading Klondike…</p></div>
+  <canvas id="game" aria-label="Solitaire game board"></canvas>
+  <div id="status" role="status"><p>Loading Solitaire…</p></div>
   <noscript>This game requires JavaScript and WebAssembly.</noscript>
   <script type="module">
     const status = document.getElementById('status');
@@ -34,6 +34,15 @@
       const fragment = location.hash.slice(1);
       return fragment ? fragment.split(':', 1)[0] : 'v1';
     }
+    function isMobileHost() {
+      const agent = navigator.userAgent;
+      // iPad Safari can identify as a Mac when requesting desktop pages.
+      return navigator.userAgentData?.mobile === true
+        || /Android|iPhone|iPad|iPod/i.test(agent)
+        || (navigator.maxTouchPoints > 1
+          && (/Macintosh/i.test(agent)
+            || matchMedia('(pointer: coarse) and (hover: none)').matches));
+    }
     const version = engineVersion();
     if (version !== 'v1') {
       fail('This game link uses an unsupported engine version. The link has been left unchanged.');
@@ -46,7 +55,7 @@
         const assetVersion = 'BUILD_ASSET_VERSION';
         const engine = await import(`./engines/v1/patience_app.js?v=${assetVersion}`);
         await engine.default({ module_or_path: new URL(`./engines/v1/patience_app_bg.wasm?v=${assetVersion}`, import.meta.url) });
-        await engine.start(document.getElementById('game'));
+        await engine.start(document.getElementById('game'), isMobileHost());
         status.remove();
         window.addEventListener('hashchange', () => {
           if (engineVersion() !== 'v1') location.reload();

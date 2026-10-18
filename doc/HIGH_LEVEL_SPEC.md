@@ -1,7 +1,7 @@
 
 # High level
 
-A collection of patience and klondike games.
+A collection of solitaire games.
 
 * persistent as-small-as-possible state
 * implemented in Rust (see Rust usage below)

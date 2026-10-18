@@ -1824,6 +1824,7 @@ dependencies = [
  "patience-core",
  "playing-card-assets",
  "rand",
+ "tiny-skia",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

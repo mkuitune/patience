@@ -1,4 +1,4 @@
-# Klondike architecture and URL format
+# Solitaire architecture and URL format
 
 This implementation uses the [rich Rust application pattern](RUST_RICH_APP.md)
 with a small headless rules kernel and an immediate-mode `egui` interface.
@@ -9,6 +9,18 @@ The web build enables only the WebGPU backend. It requires a WebGPU-capable
 browser, an available GPU adapter, and a secure context (HTTPS or localhost).
 WebGL fallback is excluded to reduce the deployed binary. Windows builds enable
 Direct3D 12 independently of the web backend selection.
+
+The HTML host detects mobile devices and passes a boolean layout policy to the
+WebAssembly entry point. Mobile hosts always fit the board to the available
+window and omit the layout toggle. Desktop hosts retain that toggle. Detection
+uses mobile browser signals and touch capability, including iPad Safari's desktop
+identity; narrowing a desktop window alone does not enable the mobile policy.
+This controls the application layout, not the browser's fullscreen API.
+Mobile portrait controls show only icons. In mobile landscape, a transparent
+left-side column replaces the top toolbar: Undo, New game, Help, Teach, Settings.
+New game and Help retain labels in that column; the other controls use icons.
+The board fits the remaining width and the full content height. Rotation changes the controls' placement without
+changing the game, undo history, or Teach setting.
 
 `cards.rs` maps game cards to documents from `playing-card-assets`. These contain
 ordered instances of shared backgrounds, suit symbols, rank glyphs, and distinct
@@ -74,11 +86,14 @@ published state appears. Reloading a bookmark resets selection and undo history.
 
 ## Help and Teach
 
-Help and Teach are independent session settings; neither changes rules or the URL.
-Help starts enabled and Teach starts disabled.
+Help opens a scrollable game guide containing all 52 card faces, the goal,
+play instructions, and the rule explanations used by move feedback. It uses the
+selected interface language and blocks board input while open.
+Teach is a session setting, initially disabled; it changes neither rules nor the URL.
 
-- Help enables the live green/red destination outlines and rule tips.
-- With Help disabled, no live destination outlines or rule tips appear. Rejected
+- Teach enables the live green/red destination outlines and rule tips, plus
+  stock-drawing and undo tooltips.
+- With Teach disabled, no live destination outlines or rule tips appear. Rejected
   drops flash the target red for 200 ms after release while the existing return
   animation runs. Drops outside any target return without a target flash.
 - Teach displays `Game::suggested_moves()`: legal card moves,
@@ -93,27 +108,28 @@ Help starts enabled and Teach starts disabled.
   foundation moves remain eligible; manual ace moves remain legal.
   An ace's suggested destination is the leftmost empty foundation slot. All empty
   slots remain legal manual destinations; double-click uses the leftmost one.
-- URL and loading failures remain visible regardless of Help.
+- URL and loading failures remain visible regardless of Teach.
 
 Legal-move enumeration belongs to the kernel. Presentation maps those commands
 to current card and pile rectangles, so layout and game rules stay separate.
 
 ## Language settings
 
-The gear button at the right of the toolbar opens a modal language selector.
+The gear button opens a modal language selector.
 Language names appear in their own language. Switching language updates toolbar
-labels, settings, rule tips, and game-link errors without changing the board or
-undo history. English is the default and the fallback for unknown language codes.
+labels, the window or browser-tab title, settings, the Help guide, rule tips, and
+game-link errors without changing the board or undo history. English is the default and the fallback for unknown language codes.
 
 `language.rs` keeps typed message keys and the bundled translation catalogs in
 the presentation crate. The kernel returns `MoveError` and `StateError` values;
-the interface maps these to localized messages. Claude Haiku supplied the ten
-non-English catalogs. Card artwork retains its English-pattern corner indexes.
+the interface maps these to localized messages. All 24 official EU languages are
+included. Claude Haiku supplied the 23 non-English catalogs. The English app name is Solitaire; other catalogs use local names where available.
+Card artwork retains its English-pattern corner indexes.
 
 Web links retain the selected language in the `lang` query parameter, for example
 `?lang=fi#v1:<payload>`. Board updates preserve that parameter; the board encoding
 does not change. The native build retains the choice for the current session.
-Help and Teach remain independent session settings.
+Teach remains a session setting; opening Help does not change it.
 
 ## Version 1 encoding
 

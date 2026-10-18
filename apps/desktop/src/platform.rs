@@ -26,6 +26,24 @@ impl Platform {
 #[cfg(target_arch = "wasm32")]
 pub use browser::Platform;
 
+impl Platform {
+    pub fn set_title(&self, ctx: &eframe::egui::Context, title: &str, language: &str) {
+        ctx.send_viewport_cmd(eframe::egui::ViewportCommand::Title(title.into()));
+        #[cfg(not(target_arch = "wasm32"))]
+        let _ = language;
+        #[cfg(target_arch = "wasm32")]
+        if let Some(document) = web_sys::window().and_then(|window| window.document()) {
+            document.set_title(title);
+            if let Some(root) = document.document_element() {
+                let _ = root.set_attribute("lang", language);
+            }
+            if let Some(canvas) = document.get_element_by_id("game") {
+                let _ = canvas.set_attribute("aria-label", title);
+            }
+        }
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 mod browser {
     use wasm_bindgen::{JsCast, JsValue, closure::Closure};
