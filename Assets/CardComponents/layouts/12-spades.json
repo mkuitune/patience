@@ -169,7 +169,7 @@
       }
     },
     {
-      "assetUuid": "28d8135b-53b8-4391-b37e-840904cfc384",
+      "assetUuid": "3c01c6c9-ee68-420a-a3dd-448391045fb0",
       "simple": {
         "position": {
           "x": 102.5,
@@ -181,7 +181,14 @@
         },
         "scale": 1,
         "handedness": 1
-      }
+      },
+      "color": {
+        "r": 0,
+        "g": 0,
+        "b": 0,
+        "a": 0
+      },
+      "styleUuid": "1140ae1d-49f1-4919-a0e4-72eb20ee6f77"
     }
   ]
 }

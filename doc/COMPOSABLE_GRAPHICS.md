@@ -90,6 +90,7 @@ The files in [`Assets/CardComponents`](../Assets/CardComponents) are:
 | `deck.json` | Rank/suit-to-document bindings, back, and reusable suit/rank references |
 | `layouts/*.json` | Ordered instances and view bounds for each face and the back |
 | `styles/card.json` | Shared card outline color, width, and width unit |
+| `styles/royal-frame.json` | Light gray inward court frame, measured in source units |
 | `*.svg` | Shared backgrounds, suits, ranks, frame, and twelve court illustrations |
 
 Edit an instance's `simple.position`, `xDirection`, or `scale` to adjust layout.
@@ -132,6 +133,11 @@ renderer strokes the actual background path and clips the stroke to its interior
 preserving the card boundary and hit region. Outline support currently requires
 a single closed SVG path without effects; unsupported sources return an error.
 The bundled card background meets that constraint.
+
+Court cards use `ROYAL_FRAME_BORDER_ONLY.svg` with a light gray, 6-source-unit
+inward outline. Their frame placements have unit scale, so the line is 6 document
+units wide. A transparent instance color suppresses the SVG fill while retaining
+the outline. Transparent fills do not allocate fill textures or emit fill quads.
 
 - `WIDTH_UNIT_SOURCE`: width is measured in the SVG's source coordinates and
   scales with instance placement and document zoom.

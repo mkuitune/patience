@@ -291,8 +291,8 @@
       }
     },
     {
-      "uuid": "28d8135b-53b8-4391-b37e-840904cfc384",
-      "path": "ROYAL_FRAME.svg",
+      "uuid": "3c01c6c9-ee68-420a-a3dd-448391045fb0",
+      "path": "ROYAL_FRAME_BORDER_ONLY.svg",
       "svg": {
         "bounds": {
           "min": {
@@ -799,6 +799,11 @@
       "uuid": "d7306a36-87b9-4652-afa9-221100969dec",
       "path": "layouts/back.json",
       "document": {}
+    },
+    {
+      "uuid": "1140ae1d-49f1-4919-a0e4-72eb20ee6f77",
+      "path": "styles/royal-frame.json",
+      "style": {}
     }
   ]
 }

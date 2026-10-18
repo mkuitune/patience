@@ -124,12 +124,14 @@ impl Renderer {
                     TextureLayer::Original
                 },
             };
-            let texture = self.texture(ui.ctx(), key)?;
-            let color = match instance.paint {
-                Paint::Original => Color32::WHITE,
-                Paint::Solid([r, g, b, a]) => Color32::from_rgba_unmultiplied(r, g, b, a),
-            };
-            paint_quad(&painter, points, texture, color);
+            if !matches!(instance.paint, Paint::Solid([_, _, _, 0])) {
+                let texture = self.texture(ui.ctx(), key)?;
+                let color = match instance.paint {
+                    Paint::Original => Color32::WHITE,
+                    Paint::Solid([r, g, b, a]) => Color32::from_rgba_unmultiplied(r, g, b, a),
+                };
+                paint_quad(&painter, points, texture, color);
+            }
             if let Some(id) = instance.style {
                 let style = *self
                     .resources
@@ -237,8 +239,22 @@ pub fn rasterize_outline(
     color: [u8; 4],
     source_width: f32,
 ) -> Result<tiny_skia::Pixmap, RenderError> {
-    let [usvg::Node::Path(path)] = tree.root().children() else {
-        return Err(RenderError::UnsupportedOutline);
+    let mut group = tree.root();
+    let path = loop {
+        if group.opacity().get() != 1.0
+            || group.blend_mode() != usvg::BlendMode::Normal
+            || group.isolate()
+            || group.clip_path().is_some()
+            || group.mask().is_some()
+            || !group.filters().is_empty()
+        {
+            return Err(RenderError::UnsupportedOutline);
+        }
+        match group.children() {
+            [usvg::Node::Group(inner)] => group = inner,
+            [usvg::Node::Path(path)] => break path,
+            _ => return Err(RenderError::UnsupportedOutline),
+        }
     };
     if !source_width.is_finite() || source_width <= 0.0 {
         return Err(RenderError::UnsupportedOutline);
