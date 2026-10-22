@@ -46,23 +46,43 @@
     const version = engineVersion();
     if (version !== 'v1') {
       fail('This game link uses an unsupported engine version. The link has been left unchanged.');
-    } else if (!window.isSecureContext) {
-      fail('Open this game over HTTPS. For testing on this computer, use localhost.', false);
-    } else if (!navigator.gpu) {
-      fail('This game requires WebGPU. Use an up-to-date browser with WebGPU support.', false);
     } else {
       try {
-        const assetVersion = 'BUILD_ASSET_VERSION';
-        const engine = await import(`./engines/v1/patience_app.js?v=${assetVersion}`);
-        await engine.default({ module_or_path: new URL(`./engines/v1/patience_app_bg.wasm?v=${assetVersion}`, import.meta.url) });
-        await engine.start(document.getElementById('game'), isMobileHost());
+        const requested = new URLSearchParams(location.search).get('renderer');
+        if (requested && requested !== 'webgpu' && requested !== 'webgl2') {
+          throw new Error('Unknown renderer. Use webgpu or webgl2.');
+        }
+        let backend = requested || 'webgl2';
+        if (!requested && navigator.gpu) {
+          try {
+            if (await navigator.gpu.requestAdapter()) backend = 'webgpu';
+          } catch { /* An exposed API does not guarantee an available adapter. */ }
+        }
+        async function start(backend) {
+          const assetVersion = backend === 'webgpu'
+            ? 'BUILD_ASSET_VERSION_WEBGPU' : 'BUILD_ASSET_VERSION_WEBGL2';
+          const base = `./engines/v1/${backend}/patience_app`;
+          const engine = await import(`${base}.js?v=${assetVersion}`);
+          await engine.default({ module_or_path: new URL(`${base}_bg.wasm?v=${assetVersion}`, import.meta.url) });
+          await engine.start(document.getElementById('game'), isMobileHost());
+        }
+        try {
+          await start(backend);
+        } catch (error) {
+          if (requested || backend !== 'webgpu') throw error;
+          console.warn('WebGPU startup failed; trying WebGL2.', error);
+          // A canvas cannot switch context types after a renderer has claimed it.
+          const canvas = document.getElementById('game');
+          canvas.replaceWith(canvas.cloneNode(false));
+          await start('webgl2');
+        }
         status.remove();
         window.addEventListener('hashchange', () => {
           if (engineVersion() !== 'v1') location.reload();
         });
       } catch (error) {
         console.error(error);
-        fail('The game could not start. Check your connection and that WebGPU is enabled and available on this device.', false);
+        fail('The game could not start. Check your connection and that WebGL2 or WebGPU is available on this device.', false);
       }
     }
   </script>

@@ -5,10 +5,21 @@ with a small headless rules kernel and an immediate-mode `egui` interface.
 Cards use the reusable [composable graphics model](COMPOSABLE_GRAPHICS.md),
 rendered through egui on the `wgpu` backend.
 
-The web build enables only the WebGPU backend. It requires a WebGPU-capable
-browser, an available GPU adapter, and a secure context (HTTPS or localhost).
-WebGL fallback is excluded to reduce the deployed binary. Windows builds enable
-Direct3D 12 independently of the web backend selection.
+The web build produces separate WebGPU and WebGL2 bundles through `wgpu`.
+`scripts/build-web.ps1` builds each with a single Cargo backend feature and writes
+the HTML loader to `dist/index.html`. Each bundle lives under
+`engines/v1/<backend>/` and has its own content hash for cache invalidation.
+The loader requests a WebGPU adapter before downloading a bundle. If no adapter
+is available, it loads WebGL2; if WebGPU startup fails, it retries WebGL2 on a
+fresh canvas. Normal startup downloads only one bundle.
+
+Use `?renderer=webgpu` or `?renderer=webgl2` to force a backend without fallback.
+These query parameters leave the game state in the URL fragment unchanged.
+WebGPU requires HTTPS or localhost; WebGL2 also works over ordinary HTTP.
+Both require WebAssembly, JavaScript modules, and a usable graphics context.
+Opening `index.html` directly as a file is unsupported; serve `dist` over HTTP
+or HTTPS. Deploy both bundles and the generated index together. Windows builds
+enable Direct3D 12 independently of the web backend selection.
 
 The HTML host detects mobile devices and passes a boolean layout policy to the
 WebAssembly entry point. Mobile hosts always fit the board to the available
